@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Авиасимулятор</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: 'Arial', sans-serif; 
+            background-color: #87CEEB; 
+            touch-action: none;
+        }
+        #score-board {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px #000;
+            z-index: 10;
+            pointer-events: none;
+        }
+        #altitude-board {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 20px;
+            text-shadow: 2px 2px 4px #000;
+            z-index: 10;
+            pointer-events: none;
+        }
+        #game-over {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 40px;
+            text-align: center;
+            text-shadow: 2px 2px 4px #000;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 20;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 20px;
+            cursor: pointer;
+            background: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover { background: #ff6b81; }
+
+        .controls-container {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            height: 150px;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        .d-pad {
+            pointer-events: auto;
+            position: relative;
+            width: 150px;
+            height: 150px;
+        }
+
+        .t-btn {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.25);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            color: white;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            touch-action: none;
+            cursor: pointer;
+        }
+
+        .t-btn:active, .t-btn.active {
+            background: rgba(255, 255, 255, 0.6);
+        }
+
+        .btn-up { top: 0; left: 50px; }
+        .btn-down { bottom: 0; left: 50px; }
+        .btn-left { top: 50px; left: 0; }
+        .btn-right { top: 50px; right: 0; }
+
+        @media (min-width: 1024px) {
+            .controls-container { opacity: 0.6; }
+            .controls-container:hover { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="score-board">Счет: 0</div>
+<div id="altitude-board">Высота: 50 м</div>
+<div id="game-over">
+    <div id="game-over-reason">ИГРА ОКОНЧЕНА</div>
+    <div id="final-score" style="font-size: 24px; margin-top: 10px;"></div>
+    <button onclick="location.reload()">Играть снова</button>
+</div>
+
+<div class="controls-container">
+    <div class="d-pad">
+        <div class="t-btn btn-up" data-key="ArrowUp">▲</div>
+        <div class="t-btn btn-down" data-key="ArrowDown">▼</div>
+        <div class="t-btn btn-left" data-key="ArrowLeft">◀</div>
+        <div class="t-btn btn-right" data-key="ArrowRight">▶</div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+    // --- 1. НАСТРОЙКА СЦЕНЫ ---
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x87CEEB, 50, 200);
+    scene.background = new THREE.Color(0x87CEEB);
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    // --- 2. СВЕТ ---
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.6);
+    scene.add(hemiLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(10, 50, 10);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
+
+    // --- 3. ЗЕМЛЯ ---
+    const groundGeom = new THREE.PlaneGeometry(500, 1000);
+    const groundMat = new THREE.MeshPhongMaterial({ 
+        color: 0x228B22,
+        flatShading: true
+    });
+    const ground = new THREE.Mesh(groundGeom, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -20;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // --- 4. ОБЛАКА ---
+    const clouds = [];
+    function createCloud(x, y, z) {
+        const cloudGroup = new THREE.Group();
+        const cloudGeom = new THREE.DodecahedronGeometry(3, 0);
+        const cloudMat = new THREE.MeshPhongMaterial({ 
+            color: 0xffffff,
+            flatShading: true,
+            transparent: true,
+            opacity: 0.9
+        });
+        
+        for (let i = 0; i < 5; i++) {
+            const cloudPart = new THREE.Mesh(cloudGeom, cloudMat);
+            cloudPart.position.set(
+                (Math.random() - 0.5) * 6,
+                (Math.random() - 0.5) * 3,
+                (Math.random() - 0.5) * 4
+            );
+            cloudPart.scale.set(
+                0.8 + Math.random() * 0.5,
+                0.8 + Math.random() * 0.5,
+                0.8 + Math.random() * 0.5
+            );
+            cloudGroup.add(cloudPart);
+        }
+        
+        cloudGroup.position.set(x, y, z);
+        scene.add(cloudGroup);
+        clouds.push(cloudGroup);
+    }
+
+    // Создаём облака на высоте
+    for (let i = 0; i < 30; i++) {
+        createCloud(
+            (Math.random() - 0.5) * 100,
+            40 + Math.random() * 20,
+            -Math.random() * 500
+        );
+    }
+
+    // --- 5. СОЗДАНИЕ САМОЛЕТА ---
+    function createPlane() {
+        const planeGroup = new THREE.Group();
+
+        const fuselageGeom = new THREE.BoxGeometry(1.5, 1.5, 4);
+        const fuselageMat = new THREE.MeshPhongMaterial({ color: 0xe74c3c, flatShading: true });
+        const fuselage = new THREE.Mesh(fuselageGeom, fuselageMat);
+        fuselage.castShadow = true;
+        planeGroup.add(fuselage);
+
+        const wingGeom = new THREE.BoxGeometry(6, 0.2, 1.5);
+        const wingMat = new THREE.MeshPhongMaterial({ color: 0xc0392b, flatShading: true });
+        const wings = new THREE.Mesh(wingGeom, wingMat);
+        wings.position.set(0, 0, 0.5);
+        wings.castShadow = true;
+        planeGroup.add(wings);
+
+        const tailGeom = new THREE.BoxGeometry(2.5, 0.2, 1);
+        const tail = new THREE.Mesh(tailGeom, wingMat);
+        tail.position.set(0, 0.5, -1.5);
+        tail.castShadow = true;
+        planeGroup.add(tail);
+
+        const vTailGeom = new THREE.BoxGeometry(0.2, 1.5, 1);
+        const vTail = new THREE.Mesh(vTailGeom, wingMat);
+        vTail.position.set(0, 0.5, -1.5);
+        vTail.castShadow = true;
+        planeGroup.add(vTail);
+
+        const propGeom = new THREE.BoxGeometry(2.2, 0.2, 0.2);
+        const propMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
+        const propeller = new THREE.Mesh(propGeom, propMat);
+        propeller.position.set(0, 0, -2);
+        planeGroup.add(propeller);
+
+        const gunGeom = new THREE.CylinderGeometry(0.1, 0.1, 0.8, 8);
+        const gunMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
+        
+        const leftGun = new THREE.Mesh(gunGeom, gunMat);
+        leftGun.rotation.x = Math.PI / 2;
+        leftGun.position.set(-2, -0.3, -0.5);
+        planeGroup.add(leftGun);
+
+        const rightGun = new THREE.Mesh(gunGeom, gunMat);
+        rightGun.rotation.x = Math.PI / 2;
+        rightGun.position.set(2, -0.3, -0.5);
+        planeGroup.add(rightGun);
+
+        return { mesh: planeGroup, propeller: propeller };
+    }
+
+    const playerObj = createPlane();
+    const player = playerObj.mesh;
+    player.rotation.y = Math.PI;
+    player.position.y = 50;
+    scene.add(player);
+    
+    camera.position.set(0, 55, 25);
+    camera.lookAt(player.position);
+
+    // --- 6. ИГРОВАЯ ЛОГИКА ---
+    let score = 0;
+    let isGameOver = false;
+    const bullets = [];
+    const enemies = [];
+    const planeSpeed = 0.8;
+    const fireRate = 5;
+    let fireTimer = 0;
+
+    // Ограничения высоты
+    const CEILING = 55;
+    const FLOOR = -15;
+    const ENEMY_MIN_Y = FLOOR + 5;  // Минимальная высота для врагов
+    const ENEMY_MAX_Y = CEILING - 10;  // Максимальная высота для врагов
+
+    const input = {
+        left: false,
+        right: false,
+        up: false,
+        down: false
+    };
+
+    const playerSpeed = 0.4;
+
+    // Обработка клавиатуры
+    document.addEventListener('keydown', (event) => {
+        if (isGameOver) return;
+        switch(event.code) {
+            case 'ArrowLeft': input.left = true; break;
+            case 'ArrowRight': input.right = true; break;
+            case 'ArrowUp': input.up = true; break;
+            case 'ArrowDown': input.down = true; break;
+        }
+    });
+
+    document.addEventListener('keyup', (event) => {
+        switch(event.code) {
+            case 'ArrowLeft': input.left = false; break;
+            case 'ArrowRight': input.right = false; break;
+            case 'ArrowUp': input.up = false; break;
+            case 'ArrowDown': input.down = false; break;
+        }
+    });
+
+    // Обработка сенсорных кнопок
+    const touchButtons = document.querySelectorAll('.t-btn');
+    
+    touchButtons.forEach(btn => {
+        btn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleTouchInput(btn.dataset.key, true);
+            btn.classList.add('active');
+        }, { passive: false });
+
+        btn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handleTouchInput(btn.dataset.key, false);
+            btn.classList.remove('active');
+        }, { passive: false });
+
+        btn.addEventListener('mousedown', (e) => {
+            handleTouchInput(btn.dataset.key, true);
+            btn.classList.add('active');
+        });
+        btn.addEventListener('mouseup', (e) => {
+            handleTouchInput(btn.dataset.key, false);
+            btn.classList.remove('active');
+        });
+        btn.addEventListener('mouseleave', (e) => {
+            handleTouchInput(btn.dataset.key, false);
+            btn.classList.remove('active');
+        });
+    });
+
+    function handleTouchInput(key, isPressed) {
+        if (isGameOver) return;
+        switch(key) {
+            case 'ArrowLeft': input.left = isPressed; break;
+            case 'ArrowRight': input.right = isPressed; break;
+            case 'ArrowUp': input.up = isPressed; break;
+            case 'ArrowDown': input.down = isPressed; break;
+        }
+    }
+
+    function shoot() {
+        const bulletGeom = new THREE.SphereGeometry(0.2, 8, 8);
+        const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        
+        const leftBullet = new THREE.Mesh(bulletGeom, bulletMat);
+        leftBullet.position.set(player.position.x - 2, player.position.y - 0.3, player.position.z - 2);
+        
+        const rightBullet = new THREE.Mesh(bulletGeom, bulletMat);
+        rightBullet.position.set(player.position.x + 2, player.position.y - 0.3, player.position.z - 2);
+        
+        scene.add(leftBullet);
+        scene.add(rightBullet);
+        bullets.push(leftBullet, rightBullet);
+    }
+
+    function spawnEnemy() {
+        if (isGameOver) return;
+
+        // Увеличенный размер врага (в 2.5 раза больше)
+        const enemySize = 4;
+        const enemyGeom = new THREE.BoxGeometry(enemySize, enemySize, enemySize);
+        const enemyMat = new THREE.MeshPhongMaterial({ 
+            color: 0x8B0000,
+            emissive: 0x330000,
+            flatShading: true
+        });
+        const enemy = new THREE.Mesh(enemyGeom, enemyMat);
+
+        // Враг появляется в допустимых пределах высоты
+        enemy.position.z = player.position.z - 100 - Math.random() * 50;
+        enemy.position.x = player.position.x + (Math.random() - 0.5) * 40;
+        enemy.position.y = ENEMY_MIN_Y + Math.random() * (ENEMY_MAX_Y - ENEMY_MIN_Y);
+
+        // Добавляем красную подсветку врагу
+        const enemyLight = new THREE.PointLight(0xff0000, 0.5, 10);
+        enemyLight.position.set(0, 0, 0);
+        enemy.add(enemyLight);
+
+        scene.add(enemy);
+        enemies.push(enemy);
+    }
+
+    setInterval(spawnEnemy, 1200);
+
+    // --- 7. ГЛАВНЫЙ ЦИКЛ ---
+    function animate() {
+        requestAnimationFrame(animate);
+
+        if (isGameOver) return;
+
+        playerObj.propeller.rotation.x += 0.8;
+
+        // Самолёт летит вперёд постоянно
+        player.position.z -= planeSpeed;
+
+        // Управление влево/вправо
+        let moveX = 0;
+        if (input.left) moveX = -playerSpeed;
+        if (input.right) moveX = playerSpeed;
+        player.position.x += moveX;
+
+        // Управление вверх/вниз с ограничениями
+        if (input.up && player.position.y < CEILING) {
+            player.position.y += playerSpeed;
+        }
+        if (input.down && player.position.y > FLOOR) {
+            player.position.y -= playerSpeed;
+        }
+
+        // Проверка границ
+        if (player.position.y >= CEILING) {
+            player.position.y = CEILING;
+        }
+        if (player.position.y <= FLOOR) {
+            player.position.y = FLOOR;
+        }
+
+        // Наклон самолёта
+        player.rotation.z = moveX * 1.5; 
+        player.rotation.x = (input.up ? -0.3 : 0) + (input.down ? 0.3 : 0);
+
+        // Ограничение по X
+        player.position.x = Math.max(-25, Math.min(25, player.position.x));
+
+        // Камера следует за самолётом
+        camera.position.z = player.position.z + 25;
+        camera.position.x += (player.position.x - camera.position.x) * 0.1;
+        camera.position.y += (player.position.y + 5 - camera.position.y) * 0.1;
+        camera.lookAt(player.position.x, player.position.y, player.position.z - 20);
+
+        // Обновление высоты на экране
+        const altitude = Math.round(player.position.y - FLOOR);
+        document.getElementById('altitude-board').innerText = 'Высота: ' + altitude + ' м';
+
+        // Автоматическая непрерывная стрельба
+        fireTimer++;
+        if (fireTimer >= fireRate) {
+            shoot();
+            fireTimer = 0;
+        }
+
+        // Пули (увеличил размер пуль)
+        for (let i = bullets.length - 1; i >= 0; i--) {
+            bullets[i].position.z -= 3;
+            if (bullets[i].position.z < player.position.z - 150) {
+                scene.remove(bullets[i]);
+                bullets.splice(i, 1);
+            }
+        }
+
+        // Облака - двигаются вместе с миром
+        clouds.forEach(cloud => {
+            if (cloud.position.z > player.position.z + 50) {
+                cloud.position.z = player.position.z - 500 - Math.random() * 200;
+                cloud.position.x = (Math.random() - 0.5) * 100;
+            }
+        });
+
+        // Земля - двигается вместе с самолётом
+        ground.position.z = player.position.z;
+
+        // Враги
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            const enemy = enemies[i];
+            enemy.position.z += planeSpeed + 0.3;
+            enemy.rotation.x += 0.02;
+            enemy.rotation.y += 0.02;
+
+            for (let j = bullets.length - 1; j >= 0; j--) {
+                const bullet = bullets[j];
+                // Увеличил дистанцию попадания (враги теперь больше)
+                if (bullet && enemy && bullet.position.distanceTo(enemy.position) < 3.5) {
+                    scene.remove(enemy);
+                    scene.remove(bullet);
+                    enemies.splice(i, 1);
+                    bullets.splice(j, 1);
+                    
+                    score += 10;
+                    document.getElementById('score-board').innerText = 'Счет: ' + score;
+                    break;
+                }
+            }
+
+            if (enemy && player.position.distanceTo(enemy.position) < 4) {
+                gameOver('Столкновение с врагом!');
+            }
+
+            if (enemy && enemy.position.z > player.position.z + 20) {
+                scene.remove(enemy);
+                enemies.splice(i, 1);
+            }
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    function gameOver(reason) {
+        isGameOver = true;
+        document.getElementById('game-over-reason').innerText = reason || 'ИГРА ОКОНЧЕНА';
+        document.getElementById('game-over').style.display = 'block';
+        document.getElementById('final-score').innerText = 'Ваш счет: ' + score;
+    }
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+
+</script>
+</body>
+</html>
