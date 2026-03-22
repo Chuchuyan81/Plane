@@ -128,23 +128,80 @@
             top: 25px;
             left: 25px;
         }
-        .settings-btn {
+        /* Базовые стили для экранов */
+        .menu-screen {
             position: absolute;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.5);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            z-index: 10;
+        }
+
+        /* Классы видимости */
+        .hidden {
+            display: none !important;
+        }
+        .active {
+            display: flex !important;
+        }
+
+        /* Кнопки (Удобно для пальца) */
+        .game-btn {
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            min-width: 200px;
+            min-height: 50px; /* Минимум 44px для тач-интерфейсов */
+            background: #4CAF50;
             color: white;
             border: none;
-            border-radius: 50%;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .game-btn:active { transform: scale(0.95); }
+
+        /* HUD в игре */
+        #game-hud {
+            background: transparent;
+            justify-content: space-between;
+            pointer-events: none; /* Чтобы клики проходили сквозь пустые места */
+        }
+        .hud-top {
+            padding: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px black;
+            pointer-events: auto;
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .icon-btn {
+            pointer-events: auto;
             width: 50px;
             height: 50px;
+            background: rgba(255, 255, 255, 0.3);
+            border: none;
+            color: white;
+            font-size: 24px;
+            border-radius: 50%;
+            margin: 20px;
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
-            pointer-events: auto;
-            z-index: 15;
         }
+        .icon-btn:active { transform: scale(0.9); }
     </style>
 </head>
 <body>
@@ -155,31 +212,166 @@
     <p>Игра работает лучше всего в портретном (вертикальном) режиме.</p>
 </div>
 
+<!-- Контейнер интерфейса -->
 <div id="ui-layer">
-    <div class="hud-top">
-        <div class="score-container">
-            <div id="score-board">Счёт: 0</div>
-            <div id="best-score">Рекорд: 0</div>
-        </div>
-        <div id="altitude-board">Высота: 50 м</div>
+
+    <!-- 1. Главное меню (Состояние: Menu) -->
+    <div id="main-menu" class="menu-screen active">
+        <h1>SKY ACE 3D</h1>
+        <p>Рекорд: <span id="menu-best-score">0</span></p>
+        <button id="btn-start" class="game-btn">В ПОЛЁТ</button>
+        <button id="btn-settings-menu" class="game-btn">НАСТРОЙКИ</button>
     </div>
-    
-    <button class="settings-btn" onclick="toggleSound()">🔊</button>
+
+    <!-- 2. Игровой HUD (Состояние: Playing) -->
+    <div id="game-hud" class="menu-screen hidden">
+        <div class="hud-top">
+            <span>Счёт: <span id="hud-score">0</span></span>
+            <span>Высота: <span id="hud-altitude">0</span> м</span>
+        </div>
+        <!-- Кнопка паузы для мобильных (на ПК можно скрыть или оставить) -->
+        <button id="btn-pause-hud" class="icon-btn">II</button>
+    </div>
+
+    <!-- 3. Меню паузы (Состояние: Paused) -->
+    <div id="pause-menu" class="menu-screen hidden">
+        <h2>ПАУЗА</h2>
+        <button id="btn-resume" class="game-btn">ПРОДОЛЖИТЬ</button>
+        <button id="btn-settings-pause" class="game-btn">НАСТРОЙКИ</button>
+        <button id="btn-quit" class="game-btn">В МЕНЮ</button>
+    </div>
+
+    <!-- 4. Экран завершения (Состояние: Game Over) -->
+    <div id="game-over" class="menu-screen hidden">
+        <h2>ИГРА ОКОНЧЕНА</h2>
+        <p>Ваш счёт: <span id="go-score">0</span></p>
+        <p id="new-record-msg" class="hidden">НОВЫЙ РЕКОРД!</p>
+        <button id="btn-restart" class="game-btn">ИГРАТЬ СНОВА</button>
+        <button id="btn-menu-go" class="game-btn">В МЕНЮ</button>
+    </div>
+
 </div>
 
 <div id="joystick-base">
     <div id="joystick-stick"></div>
 </div>
 
-<div id="game-over">
-    <div id="game-over-reason">ИГРА ОКОНЧЕНА</div>
-    <div id="final-score" style="font-size: 24px; margin-top: 10px;"></div>
-    <button onclick="location.reload()">Играть снова</button>
-</div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
 <script>
+    // --- 0. СОСТОЯНИЯ ИГРЫ ---
+    const GameState = {
+        MENU: 'Menu',
+        PLAYING: 'Playing',
+        PAUSED: 'Paused',
+        GAMEOVER: 'Game Over'
+    };
+
+    let currentState = GameState.MENU;
+    let score = 0;
+    let bestScore = parseInt(localStorage.getItem('skyAce_bestScore')) || 0;
+
+    const ui = {
+        mainMenu: document.getElementById('main-menu'),
+        gameHud: document.getElementById('game-hud'),
+        pauseMenu: document.getElementById('pause-menu'),
+        gameOver: document.getElementById('game-over'),
+        scoreDisplay: document.getElementById('hud-score'),
+        bestScoreDisplay: document.getElementById('menu-best-score'),
+        newRecordMsg: document.getElementById('new-record-msg'),
+        goScore: document.getElementById('go-score'),
+        altitudeDisplay: document.getElementById('hud-altitude')
+    };
+
+    function showScreen(screenId) {
+        // Скрыть все экраны UI
+        ui.mainMenu.classList.add('hidden');
+        ui.gameHud.classList.add('hidden');
+        ui.pauseMenu.classList.add('hidden');
+        ui.gameOver.classList.add('hidden');
+        
+        // Показать нужный
+        const target = document.getElementById(screenId);
+        if (target) {
+            target.classList.remove('hidden');
+            target.classList.add('active');
+        }
+    }
+
+    function initGameUI() {
+        ui.bestScoreDisplay.innerText = bestScore;
+        setupEventListeners();
+        showScreen('main-menu');
+    }
+
+    function startGame() {
+        currentState = GameState.PLAYING;
+        score = 0;
+        ui.scoreDisplay.innerText = score;
+        
+        // Сброс игрока и мира
+        player.position.set(0, 40, 0);
+        player.rotation.set(0, 0, 0);
+        
+        // Очистка врагов и пуль
+        enemies.forEach(e => scene.remove(e));
+        enemies.length = 0;
+        bullets.forEach(b => scene.remove(b));
+        bullets.length = 0;
+        
+        showScreen('game-hud');
+    }
+
+    function pauseGame() {
+        if (currentState !== GameState.PLAYING) return;
+        currentState = GameState.PAUSED;
+        showScreen('pause-menu');
+    }
+
+    function resumeGame() {
+        if (currentState !== GameState.PAUSED) return;
+        currentState = GameState.PLAYING;
+        showScreen('game-hud');
+    }
+
+    function gameOver(reason) {
+        currentState = GameState.GAMEOVER;
+        
+        let isNewRecord = false;
+        if (score > bestScore) {
+            bestScore = score;
+            localStorage.setItem('skyAce_bestScore', bestScore);
+            isNewRecord = true;
+        }
+
+        ui.goScore.innerText = score;
+        ui.newRecordMsg.classList.toggle('hidden', !isNewRecord);
+        ui.bestScoreDisplay.innerText = bestScore;
+        
+        showScreen('game-over');
+    }
+
+    function quitToMenu() {
+        currentState = GameState.MENU;
+        showScreen('main-menu');
+    }
+
+    function setupEventListeners() {
+        document.getElementById('btn-start').addEventListener('click', startGame);
+        document.getElementById('btn-resume').addEventListener('click', resumeGame);
+        document.getElementById('btn-quit').addEventListener('click', quitToMenu);
+        document.getElementById('btn-menu-go').addEventListener('click', quitToMenu);
+        document.getElementById('btn-restart').addEventListener('click', startGame);
+        document.getElementById('btn-pause-hud').addEventListener('click', pauseGame);
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (currentState === GameState.PLAYING) pauseGame();
+                else if (currentState === GameState.PAUSED) resumeGame();
+            }
+        });
+    }
+
     // --- 1. АУДИО КОНТРОЛЛЕР ---
     const AudioController = {
         ctx: null,
@@ -331,10 +523,6 @@
     window.addEventListener('keyup', e => keys[e.code] = false);
 
     // --- 7. ГЕЙМПЛЕЙ ---
-    let score = 0;
-    let bestScore = parseInt(localStorage.getItem('sky_ace_best')) || 0;
-    document.getElementById('best-score').innerText = 'Рекорд: ' + bestScore;
-    let isGameOver = false;
     const bullets = [];
     const enemies = [];
     let lastTime = performance.now();
@@ -363,7 +551,7 @@
     }
 
     function update(dt) {
-        if (isGameOver) return;
+        if (currentState !== GameState.PLAYING) return;
 
         // Ввод (стик или клавиатура)
         let kX = 0, kY = 0;
@@ -395,7 +583,7 @@
         camera.lookAt(player.position.x, player.position.y, player.position.z - 10);
 
         // HUD
-        document.getElementById('altitude-board').innerText = 'Высота: ' + Math.round(player.position.y) + ' м';
+        ui.altitudeDisplay.innerText = Math.round(player.position.y);
 
         // Стрельба
         fireTimer += dt;
@@ -427,7 +615,7 @@
                     scene.remove(bullets[j]);
                     bullets.splice(j, 1);
                     score += 10;
-                    document.getElementById('score-board').innerText = 'Счёт: ' + score;
+                    ui.scoreDisplay.innerText = score;
                     AudioController.playExplosion();
                     break;
                 }
@@ -435,7 +623,7 @@
 
             // Коллизия с игроком
             if (e && player.position.distanceTo(e.position) < 3) {
-                endGame('Столкновение!');
+                gameOver('Столкновение!');
             }
 
             // Удаление улетевших
@@ -452,18 +640,6 @@
                 c.position.z = player.position.z - 500 - Math.random() * 100;
             }
         });
-    }
-
-    function endGame(reason) {
-        isGameOver = true;
-        if (score > bestScore) {
-            bestScore = score;
-            localStorage.setItem('sky_ace_best', bestScore);
-            document.getElementById('best-score').innerText = 'Рекорд: ' + bestScore;
-        }
-        document.getElementById('game-over-reason').innerText = reason;
-        document.getElementById('final-score').innerText = 'Ваш счёт: ' + score;
-        document.getElementById('game-over').style.display = 'block';
     }
 
     function checkOrientation() {
@@ -489,9 +665,8 @@
     }
 
     checkOrientation();
+    initGameUI();
     animate();
-</script>
-
 </script>
 </body>
 </html>
