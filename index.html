@@ -480,7 +480,7 @@
     let startPos = { x: 0, y: 0 };
 
     function handleInputStart(x, y) {
-        if (isGameOver) return;
+        if (currentState !== GameState.PLAYING) return;
         if (!AudioController.ctx) AudioController.init();
         startPos = { x, y };
         joyBase.style.display = 'block';
@@ -489,7 +489,7 @@
     }
 
     function handleInputMove(x, y) {
-        if (isGameOver) return;
+        if (currentState !== GameState.PLAYING) return;
         const dx = x - startPos.x;
         const dy = y - startPos.y;
         const dist = Math.sqrt(dx*dx + dy*dy);
