@@ -2,8 +2,8 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D Авиасимулятор</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, orientation=portrait">
+    <title>SKY ACE 3D: Arcade Shooter</title>
     <style>
         body { 
             margin: 0; 
@@ -11,27 +11,43 @@
             font-family: 'Arial', sans-serif; 
             background-color: #87CEEB; 
             touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
         }
-        #score-board {
+        #ui-layer {
             position: absolute;
-            top: 20px;
-            left: 20px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+        }
+        .score-container {
             color: white;
             font-size: 24px;
             font-weight: bold;
             text-shadow: 2px 2px 4px #000;
-            z-index: 10;
-            pointer-events: none;
+        }
+        #best-score {
+            font-size: 16px;
+            opacity: 0.8;
         }
         #altitude-board {
-            position: absolute;
-            top: 20px;
-            right: 20px;
             color: white;
-            font-size: 20px;
+            font-size: 18px;
             text-shadow: 2px 2px 4px #000;
-            z-index: 10;
-            pointer-events: none;
+            text-align: right;
         }
         #game-over {
             display: none;
@@ -40,113 +56,176 @@
             left: 50%;
             transform: translate(-50%, -50%);
             color: white;
-            font-size: 40px;
+            font-size: 32px;
             text-align: center;
             text-shadow: 2px 2px 4px #000;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 20px;
-            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            border-radius: 15px;
             z-index: 20;
+            width: 80%;
+            max-width: 400px;
+            pointer-events: auto;
+        }
+        #orientation-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #2c3e50;
+            color: white;
+            z-index: 100;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+        }
+        .phone-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+            animation: rotate 2s infinite ease-in-out;
+        }
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(90deg); }
+            100% { transform: rotate(0deg); }
         }
         button {
             margin-top: 20px;
-            padding: 10px 20px;
+            padding: 15px 30px;
             font-size: 20px;
+            font-weight: bold;
             cursor: pointer;
             background: #ff4757;
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 30px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            min-width: 200px;
         }
-        button:hover { background: #ff6b81; }
-
-        .controls-container {
+        button:active { transform: scale(0.95); }
+        
+        #joystick-base {
             position: absolute;
-            bottom: 20px;
-            width: 100%;
-            height: 150px;
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            display: none;
+            z-index: 5;
             pointer-events: none;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 0 20px;
-            box-sizing: border-box;
         }
-
-        .d-pad {
-            pointer-events: auto;
-            position: relative;
-            width: 150px;
-            height: 150px;
-        }
-
-        .t-btn {
+        #joystick-stick {
             position: absolute;
             width: 50px;
             height: 50px;
-            background: rgba(255, 255, 255, 0.25);
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            top: 25px;
+            left: 25px;
+        }
+        .settings-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.5);
             color: white;
-            font-size: 24px;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
             display: flex;
             align-items: center;
             justify-content: center;
-            user-select: none;
-            touch-action: none;
-            cursor: pointer;
-        }
-
-        .t-btn:active, .t-btn.active {
-            background: rgba(255, 255, 255, 0.6);
-        }
-
-        .btn-up { top: 0; left: 50px; }
-        .btn-down { bottom: 0; left: 50px; }
-        .btn-left { top: 50px; left: 0; }
-        .btn-right { top: 50px; right: 0; }
-
-        @media (min-width: 1024px) {
-            .controls-container { opacity: 0.6; }
-            .controls-container:hover { opacity: 1; }
+            font-size: 24px;
+            pointer-events: auto;
+            z-index: 15;
         }
     </style>
 </head>
 <body>
 
-<div id="score-board">Счет: 0</div>
-<div id="altitude-board">Высота: 50 м</div>
+<div id="orientation-overlay">
+    <div class="phone-icon">📱</div>
+    <h2>Пожалуйста, поверните устройство</h2>
+    <p>Игра работает лучше всего в портретном (вертикальном) режиме.</p>
+</div>
+
+<div id="ui-layer">
+    <div class="hud-top">
+        <div class="score-container">
+            <div id="score-board">Счёт: 0</div>
+            <div id="best-score">Рекорд: 0</div>
+        </div>
+        <div id="altitude-board">Высота: 50 м</div>
+    </div>
+    
+    <button class="settings-btn" onclick="toggleSound()">🔊</button>
+</div>
+
+<div id="joystick-base">
+    <div id="joystick-stick"></div>
+</div>
+
 <div id="game-over">
     <div id="game-over-reason">ИГРА ОКОНЧЕНА</div>
     <div id="final-score" style="font-size: 24px; margin-top: 10px;"></div>
     <button onclick="location.reload()">Играть снова</button>
 </div>
 
-<div class="controls-container">
-    <div class="d-pad">
-        <div class="t-btn btn-up" data-key="ArrowUp">▲</div>
-        <div class="t-btn btn-down" data-key="ArrowDown">▼</div>
-        <div class="t-btn btn-left" data-key="ArrowLeft">◀</div>
-        <div class="t-btn btn-right" data-key="ArrowRight">▶</div>
-    </div>
-</div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
 <script>
-    // --- 1. НАСТРОЙКА СЦЕНЫ ---
+    // --- 1. АУДИО КОНТРОЛЛЕР ---
+    const AudioController = {
+        ctx: null,
+        enabled: false,
+        init() {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            this.enabled = true;
+        },
+        playTone(freq, type, duration, vol) {
+            if (!this.enabled || !this.ctx) return;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+            osc.start();
+            osc.stop(this.ctx.currentTime + duration);
+        },
+        playShot() { this.playTone(440, 'square', 0.1, 0.1); },
+        playExplosion() { this.playTone(100, 'sawtooth', 0.5, 0.2); },
+        playPowerUp() { this.playTone(880, 'sine', 0.2, 0.1); }
+    };
+
+    function toggleSound() {
+        if (!AudioController.ctx) AudioController.init();
+        AudioController.enabled = !AudioController.enabled;
+        document.querySelector('.settings-btn').innerText = AudioController.enabled ? '🔊' : '🔇';
+    }
+
+    // --- 2. НАСТРОЙКА СЦЕНЫ ---
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x87CEEB, 50, 200);
+    scene.fog = new THREE.Fog(0x87CEEB, 50, 250);
     scene.background = new THREE.Color(0x87CEEB);
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Оптимизация
     renderer.shadowMap.enabled = true;
     document.body.appendChild(renderer.domElement);
 
-    // --- 2. СВЕТ ---
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.6);
+    // --- 3. СВЕТ ---
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
     scene.add(hemiLight);
 
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -154,373 +233,264 @@
     dirLight.castShadow = true;
     scene.add(dirLight);
 
-    // --- 3. ЗЕМЛЯ ---
-    const groundGeom = new THREE.PlaneGeometry(500, 1000);
-    const groundMat = new THREE.MeshPhongMaterial({ 
-        color: 0x228B22,
-        flatShading: true
-    });
+    // --- 4. МИР (ЗЕМЛЯ И ОБЛАКА) ---
+    const groundGeom = new THREE.PlaneGeometry(100, 2000);
+    const groundMat = new THREE.MeshPhongMaterial({ color: 0x3b7d3b, flatShading: true });
     const ground = new THREE.Mesh(groundGeom, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -20;
     ground.receiveShadow = true;
     scene.add(ground);
 
-    // --- 4. ОБЛАКА ---
     const clouds = [];
     function createCloud(x, y, z) {
         const cloudGroup = new THREE.Group();
-        const cloudGeom = new THREE.DodecahedronGeometry(3, 0);
-        const cloudMat = new THREE.MeshPhongMaterial({ 
-            color: 0xffffff,
-            flatShading: true,
-            transparent: true,
-            opacity: 0.9
-        });
-        
-        for (let i = 0; i < 5; i++) {
-            const cloudPart = new THREE.Mesh(cloudGeom, cloudMat);
-            cloudPart.position.set(
-                (Math.random() - 0.5) * 6,
-                (Math.random() - 0.5) * 3,
-                (Math.random() - 0.5) * 4
-            );
-            cloudPart.scale.set(
-                0.8 + Math.random() * 0.5,
-                0.8 + Math.random() * 0.5,
-                0.8 + Math.random() * 0.5
-            );
-            cloudGroup.add(cloudPart);
+        const cloudGeom = new THREE.DodecahedronGeometry(Math.random() * 2 + 1, 0);
+        const cloudMat = new THREE.MeshPhongMaterial({ color: 0xffffff, flatShading: true, transparent: true, opacity: 0.8 });
+        for (let i = 0; i < 4; i++) {
+            const m = new THREE.Mesh(cloudGeom, cloudMat);
+            m.position.set(Math.random()*4-2, Math.random()*2-1, Math.random()*4-2);
+            cloudGroup.add(m);
         }
-        
         cloudGroup.position.set(x, y, z);
         scene.add(cloudGroup);
         clouds.push(cloudGroup);
     }
-
-    // Создаём облака на высоте
-    for (let i = 0; i < 30; i++) {
-        createCloud(
-            (Math.random() - 0.5) * 100,
-            40 + Math.random() * 20,
-            -Math.random() * 500
-        );
+    for (let i = 0; i < 40; i++) {
+        createCloud((Math.random()-0.5)*100, 30+Math.random()*30, -Math.random()*600);
     }
 
-    // --- 5. СОЗДАНИЕ САМОЛЕТА ---
+    // --- 5. САМОЛЕТ (ИГРОК) ---
     function createPlane() {
-        const planeGroup = new THREE.Group();
-
-        const fuselageGeom = new THREE.BoxGeometry(1.5, 1.5, 4);
-        const fuselageMat = new THREE.MeshPhongMaterial({ color: 0xe74c3c, flatShading: true });
-        const fuselage = new THREE.Mesh(fuselageGeom, fuselageMat);
-        fuselage.castShadow = true;
-        planeGroup.add(fuselage);
-
-        const wingGeom = new THREE.BoxGeometry(6, 0.2, 1.5);
-        const wingMat = new THREE.MeshPhongMaterial({ color: 0xc0392b, flatShading: true });
-        const wings = new THREE.Mesh(wingGeom, wingMat);
-        wings.position.set(0, 0, 0.5);
+        const group = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 4), new THREE.MeshPhongMaterial({ color: 0x3498db, flatShading: true }));
+        body.castShadow = true;
+        group.add(body);
+        const wings = new THREE.Mesh(new THREE.BoxGeometry(7, 0.2, 1.5), new THREE.MeshPhongMaterial({ color: 0x2980b9, flatShading: true }));
+        wings.position.z = 0.5;
         wings.castShadow = true;
-        planeGroup.add(wings);
-
-        const tailGeom = new THREE.BoxGeometry(2.5, 0.2, 1);
-        const tail = new THREE.Mesh(tailGeom, wingMat);
-        tail.position.set(0, 0.5, -1.5);
-        tail.castShadow = true;
-        planeGroup.add(tail);
-
-        const vTailGeom = new THREE.BoxGeometry(0.2, 1.5, 1);
-        const vTail = new THREE.Mesh(vTailGeom, wingMat);
-        vTail.position.set(0, 0.5, -1.5);
-        vTail.castShadow = true;
-        planeGroup.add(vTail);
-
-        const propGeom = new THREE.BoxGeometry(2.2, 0.2, 0.2);
-        const propMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
-        const propeller = new THREE.Mesh(propGeom, propMat);
-        propeller.position.set(0, 0, -2);
-        planeGroup.add(propeller);
-
-        const gunGeom = new THREE.CylinderGeometry(0.1, 0.1, 0.8, 8);
-        const gunMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
-        
-        const leftGun = new THREE.Mesh(gunGeom, gunMat);
-        leftGun.rotation.x = Math.PI / 2;
-        leftGun.position.set(-2, -0.3, -0.5);
-        planeGroup.add(leftGun);
-
-        const rightGun = new THREE.Mesh(gunGeom, gunMat);
-        rightGun.rotation.x = Math.PI / 2;
-        rightGun.position.set(2, -0.3, -0.5);
-        planeGroup.add(rightGun);
-
-        return { mesh: planeGroup, propeller: propeller };
+        group.add(wings);
+        const prop = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.2, 0.2), new THREE.MeshPhongMaterial({ color: 0x333333 }));
+        prop.position.z = -2.1;
+        group.add(prop);
+        return { mesh: group, prop: prop };
     }
-
     const playerObj = createPlane();
     const player = playerObj.mesh;
-    player.rotation.y = Math.PI;
-    player.position.y = 50;
+    player.position.y = 40;
     scene.add(player);
-    
-    camera.position.set(0, 55, 25);
-    camera.lookAt(player.position);
 
-    // --- 6. ИГРОВАЯ ЛОГИКА ---
+    // --- 6. КОНТРОЛЛЕР УПРАВЛЕНИЯ ---
+    const input = { x: 0, y: 0, intensity: 0 };
+    const joyBase = document.getElementById('joystick-base');
+    const joyStick = document.getElementById('joystick-stick');
+    const joyRadius = 50;
+    let startPos = { x: 0, y: 0 };
+
+    function handleInputStart(x, y) {
+        if (isGameOver) return;
+        if (!AudioController.ctx) AudioController.init();
+        startPos = { x, y };
+        joyBase.style.display = 'block';
+        joyBase.style.left = (x - joyRadius) + 'px';
+        joyBase.style.top = (y - joyRadius) + 'px';
+    }
+
+    function handleInputMove(x, y) {
+        if (isGameOver) return;
+        const dx = x - startPos.x;
+        const dy = y - startPos.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        const angle = Math.atan2(dy, dx);
+        
+        const moveDist = Math.min(dist, joyRadius);
+        input.intensity = moveDist / joyRadius;
+        input.x = (moveDist * Math.cos(angle)) / joyRadius;
+        input.y = (moveDist * Math.sin(angle)) / joyRadius;
+
+        joyStick.style.left = (25 + input.x * joyRadius/2) + 'px';
+        joyStick.style.top = (25 + input.y * joyRadius/2) + 'px';
+    }
+
+    function handleInputEnd() {
+        joyBase.style.display = 'none';
+        input.x = 0; input.y = 0; input.intensity = 0;
+    }
+
+    window.addEventListener('touchstart', e => handleInputStart(e.touches[0].clientX, e.touches[0].clientY), {passive:false});
+    window.addEventListener('touchmove', e => { e.preventDefault(); handleInputMove(e.touches[0].clientX, e.touches[0].clientY); }, {passive:false});
+    window.addEventListener('touchend', handleInputEnd);
+
+    window.addEventListener('mousedown', e => handleInputStart(e.clientX, e.clientY));
+    window.addEventListener('mousemove', e => { if(joyBase.style.display === 'block') handleInputMove(e.clientX, e.clientY); });
+    window.addEventListener('mouseup', handleInputEnd);
+
+    // Резервное управление клавиатурой
+    const keys = {};
+    window.addEventListener('keydown', e => keys[e.code] = true);
+    window.addEventListener('keyup', e => keys[e.code] = false);
+
+    // --- 7. ГЕЙМПЛЕЙ ---
     let score = 0;
+    let bestScore = parseInt(localStorage.getItem('sky_ace_best')) || 0;
+    document.getElementById('best-score').innerText = 'Рекорд: ' + bestScore;
     let isGameOver = false;
     const bullets = [];
     const enemies = [];
-    const planeSpeed = 0.8;
-    const fireRate = 5;
+    let lastTime = performance.now();
+    let spawnTimer = 0;
     let fireTimer = 0;
 
-    // Ограничения высоты
-    const CEILING = 55;
-    const FLOOR = -15;
-    const ENEMY_MIN_Y = FLOOR + 5;  // Минимальная высота для врагов
-    const ENEMY_MAX_Y = CEILING - 10;  // Максимальная высота для врагов
-
-    const input = {
-        left: false,
-        right: false,
-        up: false,
-        down: false
-    };
-
-    const playerSpeed = 0.4;
-
-    // Обработка клавиатуры
-    document.addEventListener('keydown', (event) => {
-        if (isGameOver) return;
-        switch(event.code) {
-            case 'ArrowLeft': input.left = true; break;
-            case 'ArrowRight': input.right = true; break;
-            case 'ArrowUp': input.up = true; break;
-            case 'ArrowDown': input.down = true; break;
-        }
-    });
-
-    document.addEventListener('keyup', (event) => {
-        switch(event.code) {
-            case 'ArrowLeft': input.left = false; break;
-            case 'ArrowRight': input.right = false; break;
-            case 'ArrowUp': input.up = false; break;
-            case 'ArrowDown': input.down = false; break;
-        }
-    });
-
-    // Обработка сенсорных кнопок
-    const touchButtons = document.querySelectorAll('.t-btn');
-    
-    touchButtons.forEach(btn => {
-        btn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            handleTouchInput(btn.dataset.key, true);
-            btn.classList.add('active');
-        }, { passive: false });
-
-        btn.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            handleTouchInput(btn.dataset.key, false);
-            btn.classList.remove('active');
-        }, { passive: false });
-
-        btn.addEventListener('mousedown', (e) => {
-            handleTouchInput(btn.dataset.key, true);
-            btn.classList.add('active');
-        });
-        btn.addEventListener('mouseup', (e) => {
-            handleTouchInput(btn.dataset.key, false);
-            btn.classList.remove('active');
-        });
-        btn.addEventListener('mouseleave', (e) => {
-            handleTouchInput(btn.dataset.key, false);
-            btn.classList.remove('active');
-        });
-    });
-
-    function handleTouchInput(key, isPressed) {
-        if (isGameOver) return;
-        switch(key) {
-            case 'ArrowLeft': input.left = isPressed; break;
-            case 'ArrowRight': input.right = isPressed; break;
-            case 'ArrowUp': input.up = isPressed; break;
-            case 'ArrowDown': input.down = isPressed; break;
-        }
-    }
-
-    function shoot() {
-        const bulletGeom = new THREE.SphereGeometry(0.2, 8, 8);
-        const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-        
-        const leftBullet = new THREE.Mesh(bulletGeom, bulletMat);
-        leftBullet.position.set(player.position.x - 2, player.position.y - 0.3, player.position.z - 2);
-        
-        const rightBullet = new THREE.Mesh(bulletGeom, bulletMat);
-        rightBullet.position.set(player.position.x + 2, player.position.y - 0.3, player.position.z - 2);
-        
-        scene.add(leftBullet);
-        scene.add(rightBullet);
-        bullets.push(leftBullet, rightBullet);
-    }
+    const CEILING = 60, FLOOR = 0, LIMIT_X = 30;
 
     function spawnEnemy() {
-        if (isGameOver) return;
-
-        // Увеличенный размер врага (в 2.5 раза больше)
-        const enemySize = 4;
-        const enemyGeom = new THREE.BoxGeometry(enemySize, enemySize, enemySize);
-        const enemyMat = new THREE.MeshPhongMaterial({ 
-            color: 0x8B0000,
-            emissive: 0x330000,
-            flatShading: true
-        });
-        const enemy = new THREE.Mesh(enemyGeom, enemyMat);
-
-        // Враг появляется в допустимых пределах высоты
-        enemy.position.z = player.position.z - 100 - Math.random() * 50;
-        enemy.position.x = player.position.x + (Math.random() - 0.5) * 40;
-        enemy.position.y = ENEMY_MIN_Y + Math.random() * (ENEMY_MAX_Y - ENEMY_MIN_Y);
-
-        // Добавляем красную подсветку врагу
-        const enemyLight = new THREE.PointLight(0xff0000, 0.5, 10);
-        enemyLight.position.set(0, 0, 0);
-        enemy.add(enemyLight);
-
+        const enemy = new THREE.Mesh(
+            new THREE.BoxGeometry(4, 4, 4),
+            new THREE.MeshPhongMaterial({ color: 0xe74c3c, flatShading: true })
+        );
+        enemy.position.set((Math.random()-0.5)*50, 10+Math.random()*40, player.position.z - 150);
         scene.add(enemy);
         enemies.push(enemy);
     }
 
-    setInterval(spawnEnemy, 1200);
+    function shoot() {
+        const b = new THREE.Mesh(new THREE.SphereGeometry(0.3), new THREE.MeshBasicMaterial({ color: 0xfff200 }));
+        b.position.copy(player.position);
+        b.position.z -= 2;
+        scene.add(b);
+        bullets.push(b);
+        AudioController.playShot();
+    }
 
-    // --- 7. ГЛАВНЫЙ ЦИКЛ ---
-    function animate() {
-        requestAnimationFrame(animate);
-
+    function update(dt) {
         if (isGameOver) return;
 
-        playerObj.propeller.rotation.x += 0.8;
+        // Ввод (стик или клавиатура)
+        let kX = 0, kY = 0;
+        if (keys['ArrowLeft']) kX = -1;
+        if (keys['ArrowRight']) kX = 1;
+        if (keys['ArrowUp']) kY = -1;
+        if (keys['ArrowDown']) kY = 1;
 
-        // Самолёт летит вперёд постоянно
-        player.position.z -= planeSpeed;
+        const moveX = (input.x || kX) * 40 * dt;
+        const moveY = -(input.y || kY) * 40 * dt; // Инверсия Y для авиа-стиля
 
-        // Управление влево/вправо
-        let moveX = 0;
-        if (input.left) moveX = -playerSpeed;
-        if (input.right) moveX = playerSpeed;
         player.position.x += moveX;
+        player.position.y += moveY;
+        player.position.z -= 50 * dt; // Полет вперед
 
-        // Управление вверх/вниз с ограничениями
-        if (input.up && player.position.y < CEILING) {
-            player.position.y += playerSpeed;
-        }
-        if (input.down && player.position.y > FLOOR) {
-            player.position.y -= playerSpeed;
-        }
+        // Ограничения
+        player.position.x = Math.max(-LIMIT_X, Math.min(LIMIT_X, player.position.x));
+        player.position.y = Math.max(FLOOR, Math.min(CEILING, player.position.y));
 
-        // Проверка границ
-        if (player.position.y >= CEILING) {
-            player.position.y = CEILING;
-        }
-        if (player.position.y <= FLOOR) {
-            player.position.y = FLOOR;
-        }
+        // Наклоны
+        player.rotation.z = -moveX * 0.5;
+        player.rotation.x = moveY * 0.5;
+        playerObj.prop.rotation.z += 1.0;
 
-        // Наклон самолёта
-        player.rotation.z = moveX * 1.5; 
-        player.rotation.x = (input.up ? -0.3 : 0) + (input.down ? 0.3 : 0);
-
-        // Ограничение по X
-        player.position.x = Math.max(-25, Math.min(25, player.position.x));
-
-        // Камера следует за самолётом
-        camera.position.z = player.position.z + 25;
+        // Камера
+        camera.position.z = player.position.z + 20;
         camera.position.x += (player.position.x - camera.position.x) * 0.1;
         camera.position.y += (player.position.y + 5 - camera.position.y) * 0.1;
-        camera.lookAt(player.position.x, player.position.y, player.position.z - 20);
+        camera.lookAt(player.position.x, player.position.y, player.position.z - 10);
 
-        // Обновление высоты на экране
-        const altitude = Math.round(player.position.y - FLOOR);
-        document.getElementById('altitude-board').innerText = 'Высота: ' + altitude + ' м';
+        // HUD
+        document.getElementById('altitude-board').innerText = 'Высота: ' + Math.round(player.position.y) + ' м';
 
-        // Автоматическая непрерывная стрельба
-        fireTimer++;
-        if (fireTimer >= fireRate) {
-            shoot();
-            fireTimer = 0;
-        }
+        // Стрельба
+        fireTimer += dt;
+        if (fireTimer > 0.15) { shoot(); fireTimer = 0; }
 
-        // Пули (увеличил размер пуль)
+        // Пули
         for (let i = bullets.length - 1; i >= 0; i--) {
-            bullets[i].position.z -= 3;
+            bullets[i].position.z -= 150 * dt;
             if (bullets[i].position.z < player.position.z - 150) {
                 scene.remove(bullets[i]);
                 bullets.splice(i, 1);
             }
         }
 
-        // Облака - двигаются вместе с миром
-        clouds.forEach(cloud => {
-            if (cloud.position.z > player.position.z + 50) {
-                cloud.position.z = player.position.z - 500 - Math.random() * 200;
-                cloud.position.x = (Math.random() - 0.5) * 100;
-            }
-        });
-
-        // Земля - двигается вместе с самолётом
-        ground.position.z = player.position.z;
-
         // Враги
-        for (let i = enemies.length - 1; i >= 0; i--) {
-            const enemy = enemies[i];
-            enemy.position.z += planeSpeed + 0.3;
-            enemy.rotation.x += 0.02;
-            enemy.rotation.y += 0.02;
+        spawnTimer += dt;
+        if (spawnTimer > 1.0) { spawnEnemy(); spawnTimer = 0; }
 
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            const e = enemies[i];
+            e.position.z += 10 * dt;
+            e.rotation.y += dt;
+
+            // Коллизия с пулей
             for (let j = bullets.length - 1; j >= 0; j--) {
-                const bullet = bullets[j];
-                // Увеличил дистанцию попадания (враги теперь больше)
-                if (bullet && enemy && bullet.position.distanceTo(enemy.position) < 3.5) {
-                    scene.remove(enemy);
-                    scene.remove(bullet);
+                if (bullets[j].position.distanceTo(e.position) < 3) {
+                    scene.remove(e);
                     enemies.splice(i, 1);
+                    scene.remove(bullets[j]);
                     bullets.splice(j, 1);
-                    
                     score += 10;
-                    document.getElementById('score-board').innerText = 'Счет: ' + score;
+                    document.getElementById('score-board').innerText = 'Счёт: ' + score;
+                    AudioController.playExplosion();
                     break;
                 }
             }
 
-            if (enemy && player.position.distanceTo(enemy.position) < 4) {
-                gameOver('Столкновение с врагом!');
+            // Коллизия с игроком
+            if (e && player.position.distanceTo(e.position) < 3) {
+                endGame('Столкновение!');
             }
 
-            if (enemy && enemy.position.z > player.position.z + 20) {
-                scene.remove(enemy);
+            // Удаление улетевших
+            if (e && e.position.z > player.position.z + 20) {
+                scene.remove(e);
                 enemies.splice(i, 1);
             }
         }
 
-        renderer.render(scene, camera);
+        // Облака и земля
+        ground.position.z = player.position.z;
+        clouds.forEach(c => {
+            if (c.position.z > player.position.z + 50) {
+                c.position.z = player.position.z - 500 - Math.random() * 100;
+            }
+        });
     }
 
-    function gameOver(reason) {
+    function endGame(reason) {
         isGameOver = true;
-        document.getElementById('game-over-reason').innerText = reason || 'ИГРА ОКОНЧЕНА';
+        if (score > bestScore) {
+            bestScore = score;
+            localStorage.setItem('sky_ace_best', bestScore);
+            document.getElementById('best-score').innerText = 'Рекорд: ' + bestScore;
+        }
+        document.getElementById('game-over-reason').innerText = reason;
+        document.getElementById('final-score').innerText = 'Ваш счёт: ' + score;
         document.getElementById('game-over').style.display = 'block';
-        document.getElementById('final-score').innerText = 'Ваш счет: ' + score;
+    }
+
+    function checkOrientation() {
+        const isLandscape = window.innerWidth > window.innerHeight;
+        document.getElementById('orientation-overlay').style.display = isLandscape ? 'flex' : 'none';
     }
 
     window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
+        checkOrientation();
     });
 
+    function animate() {
+        const now = performance.now();
+        const dt = (now - lastTime) / 1000;
+        lastTime = now;
+
+        update(dt);
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+    }
+
+    checkOrientation();
     animate();
+</script>
 
 </script>
 </body>
