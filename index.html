@@ -170,6 +170,24 @@
             display: none;
             position: relative;
         }
+        #boss-warning {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            color: #ff4d4d;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px black;
+            display: none;
+            animation: blink 0.5s infinite;
+            z-index: 100;
+        }
+        @keyframes blink {
+            0% { opacity: 0; }
+            50% { opacity: 1; }
+            100% { opacity: 0; }
+        }
         #boss-hp-bar {
             width: 100%;
             height: 100%;
@@ -252,6 +270,7 @@
 
     <!-- 2. Игровой HUD (Состояние: Playing) -->
     <div id="game-hud" class="menu-screen hidden">
+        <div id="boss-warning">БОСС!</div>
         <div class="hud-top">
             <div class="hud-row">
                 <span>СЧЁТ: <span id="hud-score">0</span></span>
@@ -306,8 +325,16 @@
         GAMEOVER: 'Game Over'
     };
 
+    const BossState = {
+        ENTERING: 'Entering',
+        ACTIVE: 'Active',
+        DESTROYED: 'Destroyed',
+        LEAVING: 'Leaving'
+    };
+
     let currentState = GameState.MENU;
     let score = 0;
+    let nextBossThreshold = 1000;
     let combo = 1;
     let maxCombo = 1;
     let kills = 0;
@@ -654,16 +681,24 @@
             this.type = type;
             this.mesh = new THREE.Mesh(Geoms[type], Mats[type]);
             this.mesh.castShadow = true;
-            this.hp = type === 'boss' ? 50 * difficulty : (type === 'shooter' ? 3 : 1);
+            this.hp = type === 'boss' ? (50 + bossesKilled * 30) : (type === 'shooter' ? 3 : 1);
             this.maxHp = this.hp;
             this.speed = type === 'kamikaze' ? 40 : 15;
             this.fireTimer = 0;
             this.sinOffset = Math.random() * Math.PI * 2;
             this.isDead = false;
+            this.state = type === 'boss' ? BossState.ENTERING : 'Active';
+            this.attackPattern = 0;
+            this.moveTimer = 0;
         }
         update(dt) {
             if (this.isDead) return;
             
+            if (this.type === 'boss') {
+                this.updateBoss(dt);
+                return;
+            }
+
             if (this.type === 'drone') {
                 this.mesh.position.z += this.speed * dt;
                 this.mesh.position.x += Math.sin(gameTime * 2 + this.sinOffset) * 10 * dt;
@@ -681,28 +716,62 @@
                     this.shoot();
                     this.fireTimer = 0;
                 }
-            } else if (this.type === 'boss') {
-                this.mesh.position.z += (player.position.z - 60 - this.mesh.position.z) * 0.5 * dt;
-                this.mesh.position.x = Math.sin(gameTime) * 20;
+            }
+        }
+        updateBoss(dt) {
+            if (this.state === BossState.ENTERING) {
+                // Плавное вхождение: босс стремится к позиции впереди игрока
+                const targetZ = player.position.z - 70;
+                const targetY = 30;
+                this.mesh.position.z += (targetZ - this.mesh.position.z) * 1.5 * dt;
+                this.mesh.position.y += (targetY - this.mesh.position.y) * dt;
+                
+                if (Math.abs(this.mesh.position.z - targetZ) < 5) {
+                    this.state = BossState.ACTIVE;
+                    document.getElementById('boss-warning').style.display = 'none';
+                }
+            } 
+            else if (this.state === BossState.ACTIVE) {
+                // Сохранение дистанции от игрока
+                this.mesh.position.z = player.position.z - 70;
+                // Патрулирование влево-вправо
+                this.mesh.position.x = Math.sin(gameTime * 0.5) * 25;
+                
                 this.fireTimer += dt;
-                if (this.fireTimer > 1.0 / difficulty) {
-                    this.shootBoss();
+                this.moveTimer += dt;
+
+                // Основная атака (пулемет)
+                if (this.fireTimer > 0.5) {
+                    this.shoot();
                     this.fireTimer = 0;
                 }
+
+                // Спецаттака (веер) каждые 5 сек
+                if (this.moveTimer > 5.0) {
+                    this.shootBossVeer();
+                    this.moveTimer = 0;
+                }
+            }
+            else if (this.state === BossState.LEAVING) {
+                this.mesh.position.z -= 100 * dt;
+                this.mesh.position.y += 50 * dt;
             }
         }
         shoot() {
             const b = new THREE.Mesh(Geoms.enemyBullet, Mats.enemyBullet);
             b.position.copy(this.mesh.position);
+            // Направление к игроку
+            const dir = new THREE.Vector3().subVectors(player.position, this.mesh.position).normalize();
+            b.userData = { vx: dir.x * 60, vy: dir.y * 60, vz: dir.z * 60 };
             scene.add(b);
             enemyBullets.push(b);
             AudioController.playEnemyShot();
         }
-        shootBoss() {
-            for (let i = -1; i <= 1; i++) {
+        shootBossVeer() {
+            for (let i = -2; i <= 2; i++) {
                 const b = new THREE.Mesh(Geoms.enemyBullet, Mats.enemyBullet);
                 b.position.copy(this.mesh.position);
-                b.userData = { vx: i * 20, vy: Math.sin(gameTime * 5) * 10 };
+                b.userData = { vx: i * 15, vy: -5, vz: 80 };
                 scene.add(b);
                 enemyBullets.push(b);
             }
@@ -718,21 +787,25 @@
         }
         die() {
             this.isDead = true;
+            this.state = BossState.DESTROYED;
             AudioController.playExplosion();
+            
+            // Тряска экрана (заглушка: смещаем камеру на мгновение)
+            shakeScreen();
+            
             kills++;
-            let points = this.type === 'boss' ? 500 : (this.type === 'shooter' ? 50 : 20);
+            let points = this.type === 'boss' ? 1000 : (this.type === 'shooter' ? 50 : 20);
             updateScore(points * combo);
             updateCombo(true);
             
-            // Шанс выпадения бонуса
-            if (this.type === 'boss' || Math.random() < 0.15) {
-                spawnPowerUp(this.mesh.position.clone());
-            }
-
             if (this.type === 'boss') {
                 isBossActive = false;
                 bossesKilled++;
+                nextBossThreshold += 1000;
                 ui.bossHpContainer.style.display = 'none';
+                spawnPowerUp(this.mesh.position.clone(), true); // Гарантированный бонус
+            } else if (Math.random() < 0.15) {
+                spawnPowerUp(this.mesh.position.clone());
             }
             scene.remove(this.mesh);
         }
@@ -763,9 +836,93 @@
 
     const CEILING = 60, FLOOR = 0, LIMIT_X = 30;
 
+    function startGame() {
+        currentState = GameState.PLAYING;
+        score = 0;
+        nextBossThreshold = 1000;
+        combo = 1;
+        maxCombo = 1;
+        kills = 0;
+        bossesKilled = 0;
+        gameTime = 0;
+        difficulty = 1;
+        isBossActive = false;
+        
+        ui.scoreDisplay.innerText = score;
+        ui.comboDisplay.innerText = combo;
+        ui.bossHpContainer.style.display = 'none';
+        document.getElementById('boss-warning').style.display = 'none';
+        ui.powerupsHud.innerHTML = '';
+        
+        // Сброс игрока и мира
+        player.position.set(0, 40, 0);
+        player.rotation.set(0, 0, 0);
+        player.hp = 1; 
+        player.shield = 0;
+        player.speedBoost = 0;
+        player.multiShot = 0;
+        
+        // Очистка
+        enemies.forEach(e => { if(e.mesh) scene.remove(e.mesh); else scene.remove(e); });
+        enemies.length = 0;
+        bullets.forEach(b => scene.remove(b));
+        bullets.length = 0;
+        enemyBullets.forEach(b => scene.remove(b));
+        enemyBullets.length = 0;
+        powerUps.forEach(p => scene.remove(p.mesh));
+        powerUps.length = 0;
+        
+        showScreen('game-hud');
+    }
+
+    function gameOver(reason) {
+        if (currentState === GameState.GAMEOVER) return;
+        currentState = GameState.GAMEOVER;
+        
+        // Босс улетает, если игрок погиб
+        enemies.forEach(e => {
+            if (e.type === 'boss') e.state = BossState.LEAVING;
+        });
+
+        handleInputEnd(); 
+        
+        let isNewRecord = false;
+        if (score > bestScore) {
+            bestScore = score;
+            localStorage.setItem('skyAce_bestScore', bestScore);
+            isNewRecord = true;
+        }
+        
+        totalKills += kills;
+        totalBosses += bossesKilled;
+        localStorage.setItem('skyAce_totalKills', totalKills);
+        localStorage.setItem('skyAce_totalBosses', totalBosses);
+
+        ui.goScore.innerText = score;
+        ui.goMaxCombo.innerText = maxCombo;
+        ui.goKills.innerText = kills;
+        ui.goBosses.innerText = bossesKilled;
+        ui.newRecordMsg.classList.toggle('hidden', !isNewRecord);
+        ui.bestScoreDisplay.innerText = bestScore;
+        
+        showScreen('game-over');
+    }
+
+    // Тряска экрана
+    let shakeIntensity = 0;
+    function shakeScreen() {
+        shakeIntensity = 2.0;
+    }
+
     function spawnEnemy() {
         if (isBossActive) return;
         
+        // Проверка на появление босса
+        if (score >= nextBossThreshold) {
+            spawnBoss();
+            return;
+        }
+
         let type = 'drone';
         const rand = Math.random();
         if (score > 1000 && rand < 0.2) type = 'shooter';
@@ -775,25 +932,26 @@
         enemy.mesh.position.set((Math.random()-0.5)*60, 10+Math.random()*40, player.position.z - 200);
         scene.add(enemy.mesh);
         enemies.push(enemy);
-
-        // Проверка на босса
-        if (score > 0 && score % 1500 < 50 && !isBossActive && score > bossesKilled * 1500) {
-            spawnBoss();
-        }
     }
 
     function spawnBoss() {
         isBossActive = true;
+        document.getElementById('boss-warning').style.display = 'block';
+        
         const boss = new Enemy('boss');
         boss.mesh.position.set(0, 30, player.position.z - 150);
         scene.add(boss.mesh);
         enemies.push(boss);
+        
         ui.bossHpContainer.style.display = 'block';
         ui.bossHpBar.style.width = '100%';
+        document.getElementById('boss-name-text').innerText = "GENERAL " + (bossesKilled + 1);
     }
 
-    function spawnPowerUp(pos) {
-        powerUps.push(new PowerUp(pos));
+    function spawnPowerUp(pos, guaranteed = false) {
+        if (guaranteed || Math.random() < 0.15) {
+            powerUps.push(new PowerUp(pos));
+        }
     }
 
     function shoot() {
@@ -848,6 +1006,14 @@
         gameTime += dt;
         difficulty = 1 + score / 5000;
 
+        // Тряска
+        let shakeX = 0, shakeY = 0;
+        if (shakeIntensity > 0) {
+            shakeX = (Math.random() - 0.5) * shakeIntensity;
+            shakeY = (Math.random() - 0.5) * shakeIntensity;
+            shakeIntensity -= dt * 5.0;
+        }
+
         // Ввод
         let kX = 0, kY = 0;
         if (keys['ArrowLeft']) kX = -1;
@@ -883,8 +1049,8 @@
         }
 
         camera.position.z = player.position.z + 20;
-        camera.position.x += (player.position.x - camera.position.x) * 0.1;
-        camera.position.y += (player.position.y + 6 - camera.position.y) * 0.1;
+        camera.position.x += (player.position.x - camera.position.x) * 0.1 + shakeX;
+        camera.position.y += (player.position.y + 6 - camera.position.y) * 0.1 + shakeY;
         camera.lookAt(player.position.x, player.position.y, player.position.z - 15);
 
         ui.altitudeDisplay.innerText = Math.round(player.position.y);
@@ -908,6 +1074,7 @@
             if (eb.userData.vx) {
                 eb.position.x += eb.userData.vx * dt;
                 eb.position.y += eb.userData.vy * dt;
+                eb.position.z += (eb.userData.vz || 0) * dt;
             }
             
             if (eb.position.distanceTo(player.position) < 3) {
