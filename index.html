@@ -386,8 +386,10 @@
     <div id="joystick-stick"></div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
 <script type="module">
-    import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
+    const THREE = window.THREE;
     import { GameState, BossState } from './src/core/GameState.js';
     import { physics } from './src/core/Physics.js';
     import { inputHandler } from './src/core/InputHandler.js';

@@ -1,6 +1,7 @@
-import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
 import { BossState } from '../core/GameState.js';
 import { BossConfig } from '../config/BossConfig.js';
+
+const THREE = window.THREE;
 
 export class Boss {
     constructor(scene, difficulty, bossesKilled, playerPos) {
