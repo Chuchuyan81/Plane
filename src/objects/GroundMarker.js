@@ -14,13 +14,14 @@ export class GroundMarker {
             color: 0xffffff, 
             transparent: true, 
             opacity: 0.5,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            fog: false // Игнорируем туман
         });
         this.plane = new THREE.Mesh(planeGeom, this.planeMat);
         this.plane.rotation.x = -Math.PI / 2;
         this.group.add(this.plane);
 
-        // Текст будет реализован через CanvasTexture для простоты
+        // Текст через CanvasTexture
         this.canvas = document.createElement('canvas');
         this.canvas.width = 256;
         this.canvas.height = 64;
@@ -30,12 +31,12 @@ export class GroundMarker {
         const spriteMat = new THREE.SpriteMaterial({ 
             map: this.texture, 
             transparent: true,
-            depthTest: false // Гарантируем видимость поверх земли
+            fog: false // Игнорируем туман
         });
         this.sprite = new THREE.Sprite(spriteMat);
-        this.sprite.position.y = 3; // Выше над группой
-        this.sprite.renderOrder = 10;
-        this.sprite.scale.set(25, 6, 1);
+        this.sprite.position.y = 1; // Относительно группы
+        this.sprite.renderOrder = 100; // Поверх всего
+        this.sprite.scale.set(30, 7.5, 1);
         this.group.add(this.sprite);
 
         // Для чек-поинтов
@@ -43,16 +44,16 @@ export class GroundMarker {
         this.starGroup.visible = false;
         this.group.add(this.starGroup);
         
-        const starGeom = new THREE.OctahedronGeometry(2.5, 0);
+        const starGeom = new THREE.OctahedronGeometry(3, 0);
         this.starMat = new THREE.MeshPhongMaterial({ 
             color: 0xffd700, 
             emissive: 0xffd700, 
-            emissiveIntensity: 1.0,
-            depthTest: false
+            emissiveIntensity: 1.5,
+            fog: false // Звезда всегда яркая
         });
         this.star = new THREE.Mesh(starGeom, this.starMat);
-        this.star.position.y = 8;
-        this.star.renderOrder = 11;
+        this.star.position.y = 10;
+        this.star.renderOrder = 101;
         this.starGroup.add(this.star);
 
         this.isCheckpoint = false;

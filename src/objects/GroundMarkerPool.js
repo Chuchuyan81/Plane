@@ -40,8 +40,8 @@ export class GroundMarkerPool {
         if (this.scene && !marker.mesh.parent) this.scene.add(marker.mesh);
         
         marker.setup(distance, isCheckpoint);
-        // В Three.js Z отрицательная для движения вперед. Y ставим на уровень земли (-20) + 0.1
-        marker.mesh.position.set(0, -19.9, -distance);
+        // В Three.js Z отрицательная для движения вперед. Y ставим выше уровня земли (-20)
+        marker.mesh.position.set(0, -18.5, -distance);
         marker.visible = true;
         this.active.push(marker);
         return marker;

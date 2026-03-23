@@ -881,7 +881,7 @@
 
         // Обновление и спаун маркеров
         markerPool.update(dt);
-        markerPool.cull(player.position.z, 600);
+        markerPool.cull(camera.position.z, 800);
         
         const cpInterval = GAME_CONSTANTS.CHECKPOINT_INTERVALS[currentDifficulty];
         let markerStep = 100;
