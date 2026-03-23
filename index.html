@@ -393,7 +393,7 @@
 
     // --- 3. НАСТРОЙКА СЦЕНЫ ---
     const scene = new THREE.Scene();
-    scene.fog = null; // Временно отключаем туман для отладки видимости маркеров
+    scene.fog = new THREE.Fog(0x87CEEB, 100, 500); // Возвращаем туман, но делаем его дальше
     scene.background = new THREE.Color(0x87CEEB);
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -879,21 +879,26 @@
         }
         uiManager.updateCheckpointProgress(checkpointManager.getProgress(distance));
 
-        // Обновление и спаун маркеров
+        // ОБНОВЛЕННАЯ ЛОГИКА: Спаун маркеров ЗАРАНЕЕ (на 800м вперед)
         markerPool.update(dt);
-        markerPool.cull(camera.position.z, 800);
+        markerPool.cull(camera.position.z, 1000);
         
         const cpInterval = GAME_CONSTANTS.CHECKPOINT_INTERVALS[currentDifficulty];
         let markerStep = 100;
         if (currentMarkerDetail === 'low') markerStep = cpInterval;
         else if (currentMarkerDetail === 'medium') markerStep = 500;
 
-        const spawnDist = Math.floor(distance / markerStep) * markerStep;
-        if (spawnDist > lastMarkerDistance) {
-            const isCP = spawnDist > 0 && spawnDist % cpInterval === 0;
-            console.log(`Spawning marker at ${spawnDist}m, isCheckpoint: ${isCP}`);
-            markerPool.spawn(spawnDist, isCP);
-            lastMarkerDistance = spawnDist;
+        const lookAheadLimit = distance + 800;
+        while (lastMarkerDistance + markerStep <= lookAheadLimit) {
+            const nextSpawnDist = lastMarkerDistance + markerStep;
+            if (nextSpawnDist < 0) { 
+                lastMarkerDistance = 0;
+                markerPool.spawn(0, false);
+                continue;
+            }
+            const isCP = nextSpawnDist > 0 && nextSpawnDist % cpInterval === 0;
+            markerPool.spawn(nextSpawnDist, isCP);
+            lastMarkerDistance = nextSpawnDist;
         }
 
         fireTimer += dt;

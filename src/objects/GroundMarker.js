@@ -9,10 +9,11 @@ export class GroundMarker {
         this.isVisible = false;
         
         // Создаем геометрию для маркера (плоскость на земле)
-        const planeGeom = new THREE.PlaneGeometry(20, 5);
+        const planeGeom = new THREE.PlaneGeometry(15, 3);
         this.planeMat = new THREE.MeshBasicMaterial({ 
-            color: 0x000000, // Черная подложка для контраста
-            transparent: false, 
+            color: 0xffffff, 
+            transparent: true, 
+            opacity: 0.3,
             side: THREE.DoubleSide,
             fog: false
         });
@@ -22,20 +23,20 @@ export class GroundMarker {
 
         // Текст через CanvasTexture
         this.canvas = document.createElement('canvas');
-        this.canvas.width = 512; // Увеличиваем разрешение
+        this.canvas.width = 512;
         this.canvas.height = 128;
         this.context = this.canvas.getContext('2d');
         
         this.texture = new THREE.CanvasTexture(this.canvas);
         const spriteMat = new THREE.SpriteMaterial({ 
             map: this.texture, 
-            transparent: false, // Делаем непрозрачным для теста
+            transparent: true,
             fog: false
         });
         this.sprite = new THREE.Sprite(spriteMat);
-        this.sprite.position.y = 2; 
+        this.sprite.position.y = 1; 
         this.sprite.renderOrder = 999; 
-        this.sprite.scale.set(40, 10, 1);
+        this.sprite.scale.set(30, 7.5, 1);
         this.group.add(this.sprite);
 
         // Для чек-поинтов
@@ -43,15 +44,15 @@ export class GroundMarker {
         this.starGroup.visible = false;
         this.group.add(this.starGroup);
         
-        const starGeom = new THREE.OctahedronGeometry(8, 0); // В 3 раза больше
+        const starGeom = new THREE.OctahedronGeometry(4, 0); 
         this.starMat = new THREE.MeshPhongMaterial({ 
             color: 0xffd700, 
             emissive: 0xffd700, 
-            emissiveIntensity: 2.0,
+            emissiveIntensity: 1.5,
             fog: false
         });
         this.star = new THREE.Mesh(starGeom, this.starMat);
-        this.star.position.y = 20; // Выше
+        this.star.position.y = 10;
         this.star.renderOrder = 1000;
         this.starGroup.add(this.star);
 
@@ -70,25 +71,27 @@ export class GroundMarker {
         
         if (isCheckpoint) {
             this.planeMat.color.set(0xffd700);
-            this.planeMat.opacity = 1.0;
-            this.plane.scale.set(2.0, 2.0, 1);
+            this.planeMat.opacity = 0.8;
+            this.plane.scale.set(1.5, 1.5, 1);
         } else {
-            this.planeMat.color.set(0x000000);
-            this.planeMat.opacity = 1.0;
+            this.planeMat.color.set(0xffffff);
+            this.planeMat.opacity = 0.3;
             this.plane.scale.set(1, 1, 1);
         }
 
         // Обновляем текст на канвасе
-        this.context.fillStyle = isCheckpoint ? '#ffd700' : '#ffffff';
-        this.context.fillRect(0, 0, this.canvas.width, this.canvas.height); // Заливка фона
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        this.context.fillStyle = isCheckpoint ? '#000000' : '#ff0000'; // Контрастный текст
+        this.context.fillStyle = isCheckpoint ? 'rgba(255, 215, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)';
+        this.context.fillRect(0, 0, this.canvas.width, this.canvas.height); 
+        
+        this.context.fillStyle = isCheckpoint ? '#ffd700' : '#ffffff'; 
         this.context.font = 'bold 80px Arial';
         this.context.textAlign = 'center';
         this.context.textBaseline = 'middle';
         
         let text = `${distance} м`;
-        if (isCheckpoint) text = `CHECKPOINT ${distance}m`;
+        if (isCheckpoint) text = `★ ${distance} м ★`;
         
         this.context.fillText(text, this.canvas.width / 2, this.canvas.height / 2);
         this.texture.needsUpdate = true;
