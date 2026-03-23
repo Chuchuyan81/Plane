@@ -836,16 +836,24 @@
 
         const move = inputHandler.getInput();
         const pSpeed = 40 * (player.speedBoost > 0 ? 1.5 : 1.0);
+        
         player.position.x += move.x * pSpeed * dt;
         player.position.y += move.y * pSpeed * dt;
         player.position.z -= 60 * dt;
+
         player.position.x = Math.max(-GAME_CONSTANTS.LIMIT_X, Math.min(GAME_CONSTANTS.LIMIT_X, player.position.x));
         player.position.y = Math.max(GAME_CONSTANTS.FLOOR, Math.min(GAME_CONSTANTS.CEILING, player.position.y));
-        player.rotation.z = -move.x * pSpeed * dt * 0.5;
-        player.rotation.x = move.y * pSpeed * dt * 0.5;
+        
+        // Плавный наклон (независимо от FPS)
+        const targetRotZ = -move.x * 0.6;
+        const targetRotX = move.y * 0.4;
+        player.rotation.z += (targetRotZ - player.rotation.z) * (1 - Math.exp(-10 * dt));
+        player.rotation.x += (targetRotX - player.rotation.x) * (1 - Math.exp(-10 * dt));
+        
         playerObj.prop.rotation.z += 1.5;
         playerObj.shieldMesh.visible = player.shield > 0;
 
+        // Таймеры бонусов
         if (player.speedBoost > 0) {
             player.speedBoost -= dt; updatePowerUpHUD('speed', player.speedBoost);
             if (player.speedBoost <= 0) document.getElementById('pu-speed')?.remove();
@@ -855,9 +863,11 @@
             if (player.multiShot <= 0) document.getElementById('pu-multishot')?.remove();
         }
 
+        // Плавное движение камеры (независимо от FPS)
+        const lerpFactor = 1 - Math.exp(-5 * dt);
         camera.position.z = player.position.z + 20;
-        camera.position.x += (player.position.x - camera.position.x) * 0.1 + shakeX;
-        camera.position.y += (player.position.y + 6 - camera.position.y) * 0.1 + shakeY;
+        camera.position.x += (player.position.x - camera.position.x) * lerpFactor + shakeX;
+        camera.position.y += (player.position.y + 6 - camera.position.y) * lerpFactor + shakeY;
         camera.lookAt(player.position.x, player.position.y, player.position.z - 15);
 
         const distance = physics.updateDistance(player.position);
@@ -881,6 +891,7 @@
         const spawnDist = Math.floor(distance / markerStep) * markerStep;
         if (spawnDist > lastMarkerDistance) {
             const isCP = spawnDist > 0 && spawnDist % cpInterval === 0;
+            console.log(`Spawning marker at ${spawnDist}m, isCheckpoint: ${isCP}`);
             markerPool.spawn(spawnDist, isCP);
             lastMarkerDistance = spawnDist;
         }
@@ -973,7 +984,8 @@
 
     function animate() {
         const now = performance.now();
-        const dt = (now - lastTime) / 1000;
+        let dt = (now - lastTime) / 1000;
+        if (dt > 0.1) dt = 0.1; // Ограничиваем dt для предотвращения рывков при лагах
         lastTime = now;
         update(dt);
         renderer.render(scene, camera);

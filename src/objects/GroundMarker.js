@@ -27,10 +27,15 @@ export class GroundMarker {
         this.context = this.canvas.getContext('2d');
         
         this.texture = new THREE.CanvasTexture(this.canvas);
-        const spriteMat = new THREE.SpriteMaterial({ map: this.texture, transparent: true });
+        const spriteMat = new THREE.SpriteMaterial({ 
+            map: this.texture, 
+            transparent: true,
+            depthTest: false // Гарантируем видимость поверх земли
+        });
         this.sprite = new THREE.Sprite(spriteMat);
-        this.sprite.position.y = 2; // Относительно группы (которая будет на -19.9)
-        this.sprite.scale.set(20, 5, 1);
+        this.sprite.position.y = 3; // Выше над группой
+        this.sprite.renderOrder = 10;
+        this.sprite.scale.set(25, 6, 1);
         this.group.add(this.sprite);
 
         // Для чек-поинтов
@@ -38,15 +43,16 @@ export class GroundMarker {
         this.starGroup.visible = false;
         this.group.add(this.starGroup);
         
-        // Звезда ★ (упрощенно - 2 треугольника или Octahedron)
-        const starGeom = new THREE.OctahedronGeometry(2, 0);
+        const starGeom = new THREE.OctahedronGeometry(2.5, 0);
         this.starMat = new THREE.MeshPhongMaterial({ 
             color: 0xffd700, 
             emissive: 0xffd700, 
-            emissiveIntensity: 0.5 
+            emissiveIntensity: 1.0,
+            depthTest: false
         });
         this.star = new THREE.Mesh(starGeom, this.starMat);
-        this.star.position.y = 5; // Относительно группы
+        this.star.position.y = 8;
+        this.star.renderOrder = 11;
         this.starGroup.add(this.star);
 
         this.isCheckpoint = false;
