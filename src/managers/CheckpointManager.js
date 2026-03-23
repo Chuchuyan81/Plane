@@ -7,6 +7,7 @@ export class CheckpointManager {
         this.interval = GAME_CONSTANTS.CHECKPOINT_INTERVALS.medium;
         this.currentDifficulty = 'medium';
         this.lastSavedDistance = 0;
+        this.isLocked = false;
     }
 
     /**
@@ -16,7 +17,43 @@ export class CheckpointManager {
     init(difficulty) {
         this.currentDifficulty = difficulty;
         this.interval = GAME_CONSTANTS.CHECKPOINT_INTERVALS[difficulty] || 500;
+        this.isLocked = false;
         this.reset();
+    }
+
+    /**
+     * Блокировка создания чек-поинтов
+     */
+    lockCheckpointCreation() {
+        this.isLocked = true;
+    }
+
+    /**
+     * Разблокировка создания чек-поинтов
+     */
+    unlockCheckpointCreation() {
+        this.isLocked = false;
+    }
+
+    /**
+     * Принудительное сохранение (например, для PRE_BOSS)
+     * @param {object} metadata - дополнительные данные для чек-поинта
+     * @returns {object} сохранённый чек-поинт
+     */
+    forceSave(metadata = {}) {
+        const checkpoint = {
+            distance: metadata.distance || this.lastSavedDistance,
+            score: metadata.score || 0,
+            comboMultiplier: metadata.combo || 1,
+            activePowerUps: [], // handled in save() if needed, but for forceSave we use what is passed
+            type: metadata.type || 'STANDARD',
+            timestamp: Date.now(),
+            ...metadata
+        };
+
+        this.lastCheckpoint = checkpoint;
+        this.checkpoints.push(checkpoint);
+        return checkpoint;
     }
 
     /**
@@ -25,6 +62,8 @@ export class CheckpointManager {
      * @returns {boolean} сохранён ли чек-поинт
      */
     check(distance) {
+        if (this.isLocked) return false;
+
         // Проверяем достижение нового интервала (например, каждые 500 м)
         const nextTarget = this.lastSavedDistance + this.interval;
         if (distance >= nextTarget) {
@@ -37,14 +76,16 @@ export class CheckpointManager {
     /**
      * Сохранение текущего состояния
      * @param {object} gameState - объект состояния игры
+     * @param {string} type - тип чек-поинта ('STANDARD', 'PRE_BOSS', 'POST_BOSS')
      * @returns {object} сохранённый чек-поинт
      */
-    save(gameState) {
+    save(gameState, type = 'STANDARD') {
         const checkpoint = {
             distance: this.lastSavedDistance,
             score: gameState.score,
             comboMultiplier: gameState.combo,
             activePowerUps: this._serializePowerUps(gameState.player),
+            type: type,
             timestamp: Date.now()
         };
         

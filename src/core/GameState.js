@@ -4,7 +4,8 @@ export const GameState = {
     PLAYING: 'Playing',
     PAUSED: 'Paused',
     RESPAWNING: 'Respawning',
-    GAMEOVER: 'Game Over'
+    GAMEOVER: 'Game Over',
+    BOSS_FIGHT: 'Boss Fight'
 };
 
 export const BossState = {

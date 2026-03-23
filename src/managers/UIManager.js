@@ -1,6 +1,7 @@
 import { notificationSystem } from '../ui/components/Notification.js';
 import { CheckpointBar } from '../ui/components/CheckpointBar.js';
 import { SettingsScreen } from '../ui/screens/SettingsScreen.js';
+import { BossHUD } from '../ui/BossHUD.js';
 
 /**
  * Управление пользовательским интерфейсом
@@ -28,6 +29,7 @@ export class UIManager {
         this.checkpointBar = new CheckpointBar();
         this.settingsScreen = new SettingsScreen();
         this.notificationSystem = notificationSystem;
+        this.bossHUD = new BossHUD();
         
         this._init();
     }
@@ -60,7 +62,7 @@ export class UIManager {
 
     /**
      * Обновить HUD
-     * @param {object} data - { score, distance, combo, comboActive, bossHp, powerups }
+     * @param {object} data - { score, distance, combo, comboActive, bossHp, bossCurrentHp, bossMaxHp, bossName }
      */
     updateHUD(data) {
         if (data.score !== undefined) this.hudElements.score.innerText = data.score;
@@ -73,7 +75,14 @@ export class UIManager {
         }
         
         if (data.bossHp !== undefined) {
-            this.hudElements.bossHpBar.style.width = `${data.bossHp * 100}%`;
+            if (data.bossHp > 0) {
+                if (!this.bossHUD.isVisible) {
+                    this.bossHUD.show(data.bossName || "BOSS", data.bossMaxHp || 100);
+                }
+                this.bossHUD.update(data.bossHp, data.bossCurrentHp || 0, data.bossMaxHp || 0);
+            } else {
+                this.bossHUD.hide();
+            }
         }
     }
 

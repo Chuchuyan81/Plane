@@ -28,11 +28,26 @@ export class ScoreManager {
     /**
      * Загрузка данных из чек-поинта
      * @param {object} checkpoint - объект чек-поинта
+     * @param {string} difficulty - сложность
      */
-    loadFromCheckpoint(checkpoint) {
+    loadFromCheckpoint(checkpoint, difficulty = 'medium') {
         if (!checkpoint) return;
         this.score = checkpoint.score;
-        this.combo = 1; // По ТЗ: Сброс множителя комбо в 1.0 при возрождении
+        
+        // По ТЗ: Штраф комбо при смерти
+        if (checkpoint.type === 'PRE_BOSS' || checkpoint.type === 'MID_BOSS') {
+            if (difficulty === 'easy') {
+                this.combo = 1.0;
+            } else {
+                this.combo = 1.0;
+                if (difficulty === 'hard') {
+                    // -10% очков на Hard при смерти от босса
+                    this.score = Math.floor(this.score * 0.9);
+                }
+            }
+        } else {
+            this.combo = 1.0;
+        }
     }
 
     /**
