@@ -8,7 +8,7 @@ export const storage = {
         localStorage.setItem(STORAGE_KEYS.DIFFICULTY, level);
     },
     getMarkerDetail() {
-        return localStorage.getItem(STORAGE_KEYS.MARKER_DETAIL) || GAME_CONSTANTS.MARKER_DETAIL_LEVELS.MEDIUM;
+        return localStorage.getItem(STORAGE_KEYS.MARKER_DETAIL) || GAME_CONSTANTS.MARKER_DETAIL_LEVELS.HIGH;
     },
     setMarkerDetail(level) {
         localStorage.setItem(STORAGE_KEYS.MARKER_DETAIL, level);

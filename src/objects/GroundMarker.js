@@ -1,6 +1,8 @@
 /**
  * Наземный маркер дистанции
  */
+const THREE = window.THREE;
+
 export class GroundMarker {
     constructor() {
         this.group = new THREE.Group();
@@ -27,8 +29,8 @@ export class GroundMarker {
         this.texture = new THREE.CanvasTexture(this.canvas);
         const spriteMat = new THREE.SpriteMaterial({ map: this.texture, transparent: true });
         this.sprite = new THREE.Sprite(spriteMat);
-        this.sprite.position.y = 2; // Чуть выше земли
-        this.sprite.scale.set(10, 2.5, 1);
+        this.sprite.position.y = 2; // Относительно группы (которая будет на -19.9)
+        this.sprite.scale.set(20, 5, 1);
         this.group.add(this.sprite);
 
         // Для чек-поинтов
@@ -44,7 +46,7 @@ export class GroundMarker {
             emissiveIntensity: 0.5 
         });
         this.star = new THREE.Mesh(starGeom, this.starMat);
-        this.star.position.y = 5;
+        this.star.position.y = 5; // Относительно группы
         this.starGroup.add(this.star);
 
         this.isCheckpoint = false;

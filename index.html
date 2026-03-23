@@ -337,7 +337,7 @@
     let currentDifficulty = storage.getDifficulty();
     let currentMarkerDetail = storage.getMarkerDetail();
     let respawnTimer = 0;
-    let lastMarkerDistance = 0;
+    let lastMarkerDistance = -1;
 
     // --- 1. АУДИО КОНТРОЛЛЕР ---
     const AudioController = {
@@ -621,7 +621,7 @@
         physics.resetDistance(0);
         checkpointManager.init(currentDifficulty);
         markerPool.reset();
-        lastMarkerDistance = 0;
+        lastMarkerDistance = -1;
         
         isBossActive = false;
         nextBossThreshold = 1000;
@@ -752,7 +752,7 @@
         uiManager.settingsScreen.onDetailChange = (detail) => { 
             currentMarkerDetail = detail; 
             markerPool.reset();
-            lastMarkerDistance = 0;
+            lastMarkerDistance = -1;
         };
         window.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
@@ -878,13 +878,11 @@
         if (currentMarkerDetail === 'low') markerStep = cpInterval;
         else if (currentMarkerDetail === 'medium') markerStep = 500;
 
-        if (distance - lastMarkerDistance >= markerStep || distance === 0 && lastMarkerDistance === 0) {
-            const spawnDist = Math.floor(distance / markerStep) * markerStep;
-            if (spawnDist > lastMarkerDistance || distance === 0) {
-                const isCP = spawnDist > 0 && spawnDist % cpInterval === 0;
-                markerPool.spawn(spawnDist, isCP);
-                lastMarkerDistance = spawnDist;
-            }
+        const spawnDist = Math.floor(distance / markerStep) * markerStep;
+        if (spawnDist > lastMarkerDistance) {
+            const isCP = spawnDist > 0 && spawnDist % cpInterval === 0;
+            markerPool.spawn(spawnDist, isCP);
+            lastMarkerDistance = spawnDist;
         }
 
         fireTimer += dt;
@@ -958,34 +956,6 @@
             }
         });
     }
-
-    function checkOrientation() {
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        const isLandscape = window.innerWidth > window.innerHeight;
-        const overlay = document.getElementById('orientation-overlay');
-        if (overlay) overlay.style.display = (isMobile && isLandscape) ? 'flex' : 'none';
-    }
-
-    window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        checkOrientation();
-    });
-
-    function animate() {
-        const now = performance.now();
-        const dt = (now - lastTime) / 1000;
-        lastTime = now;
-        update(dt);
-        renderer.render(scene, camera);
-        requestAnimationFrame(animate);
-    }
-
-    checkOrientation();
-    initGameUI();
-    animate();
-</script>
 
     function checkOrientation() {
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
