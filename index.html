@@ -669,7 +669,7 @@
     }
 
     function gameOver(reason) {
-        if (currentState === GameState.GAMEOVER) return;
+        if (currentState === GameState.GAMEOVER || currentState === GameState.RESPAWNING) return;
         const lastCP = checkpointManager.getLast();
         if (lastCP && currentState !== GameState.RESPAWNING) {
             startRespawn(lastCP);
@@ -718,12 +718,18 @@
     }
 
     function onCheckpointReached() {
-        // 1. Свечение контура
-        Mats.player.emissiveIntensity = 1.0;
-        setTimeout(() => { if (Mats.player) Mats.player.emissiveIntensity = 0; }, 300);
+        // 1. Свечение контура самолета (Золотистая аура)
+        Mats.player.emissive.set(0xffd700);
+        Mats.player.emissiveIntensity = 2.0;
+        setTimeout(() => { 
+            if (Mats.player) {
+                Mats.player.emissive.set(0xffffff);
+                Mats.player.emissiveIntensity = 0; 
+            }
+        }, 300);
         // 2. Вибрация
         if (navigator.vibrate) navigator.vibrate(50);
-        // 3. Звук
+        // 3. Звук (1200 Гц, высокий тон)
         AudioController.playCheckpoint();
     }
 
