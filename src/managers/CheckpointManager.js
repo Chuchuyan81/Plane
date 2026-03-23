@@ -51,15 +51,6 @@ export class CheckpointManager {
         this.lastCheckpoint = checkpoint;
         this.checkpoints.push(checkpoint);
         
-        // Вибрация при сохранении (если поддерживается)
-        if (navigator.vibrate) {
-            try {
-                navigator.vibrate(50);
-            } catch (e) {
-                // Игнорируем ошибки вибрации
-            }
-        }
-        
         return checkpoint;
     }
 

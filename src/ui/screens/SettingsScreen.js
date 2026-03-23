@@ -2,7 +2,7 @@ import { GAME_CONSTANTS } from '../../utils/constants.js';
 import { storage } from '../../utils/storage.js';
 
 /**
- * Экран настроек сложности
+ * Экран настроек
  */
 export class SettingsScreen {
     constructor() {
@@ -17,61 +17,75 @@ export class SettingsScreen {
         const style = document.createElement('style');
         style.textContent = `
             #settings-screen {
-                background: rgba(0, 0, 0, 0.9);
+                background: rgba(0, 0, 0, 0.95);
                 flex-direction: column;
-                justify-content: center;
+                justify-content: flex-start;
                 align-items: center;
-                z-index: 50;
+                z-index: 100;
+                padding-top: 50px;
+                overflow-y: auto;
             }
             .settings-title {
                 font-size: 32px;
                 color: gold;
-                margin-bottom: 30px;
+                margin-bottom: 20px;
                 text-transform: uppercase;
                 letter-spacing: 2px;
             }
-            .difficulty-selector {
+            .settings-section {
+                width: 90%;
+                max-width: 400px;
+                margin-bottom: 25px;
+            }
+            .section-title {
+                font-size: 18px;
+                color: #ccc;
+                margin-bottom: 10px;
+                text-align: left;
+                width: 100%;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+                padding-bottom: 5px;
+            }
+            .selector-group {
                 display: flex;
                 flex-direction: column;
-                gap: 15px;
-                width: 80%;
-                max-width: 300px;
+                gap: 10px;
             }
-            .difficulty-btn {
-                padding: 15px;
-                border: 2px solid rgba(255, 255, 255, 0.3);
-                background: rgba(255, 255, 255, 0.1);
+            .selector-btn {
+                padding: 12px;
+                border: 2px solid rgba(255, 255, 255, 0.2);
+                background: rgba(255, 255, 255, 0.05);
                 color: white;
-                font-size: 18px;
-                border-radius: 10px;
+                font-size: 16px;
+                border-radius: 8px;
                 cursor: pointer;
-                transition: all 0.3s;
+                transition: all 0.2s;
                 text-align: center;
+                position: relative;
             }
-            .difficulty-btn:hover {
-                background: rgba(255, 255, 255, 0.2);
-            }
-            .difficulty-btn.active {
+            .selector-btn:active { transform: scale(0.98); }
+            .selector-btn.active {
                 border-color: gold;
-                background: rgba(255, 215, 0, 0.2);
+                background: rgba(255, 215, 0, 0.15);
                 color: gold;
-                box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
             }
-            .difficulty-desc {
-                font-size: 12px;
-                margin-top: 5px;
-                opacity: 0.7;
+            .btn-desc {
+                font-size: 11px;
+                margin-top: 4px;
+                opacity: 0.6;
             }
             .back-btn {
-                margin-top: 40px;
-                padding: 10px 30px;
+                margin: 20px 0 50px 0;
+                padding: 15px 40px;
                 border: none;
                 background: #ff4757;
                 color: white;
-                border-radius: 20px;
-                font-size: 16px;
+                border-radius: 30px;
+                font-size: 18px;
+                font-weight: bold;
                 cursor: pointer;
-                min-width: 150px;
+                min-width: 200px;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.3);
             }
         `;
         document.head.appendChild(style);
@@ -80,28 +94,51 @@ export class SettingsScreen {
     _initElements() {
         this.container.innerHTML = `
             <div class="settings-title">НАСТРОЙКИ</div>
-            <div class="difficulty-selector">
-                <div class="difficulty-btn" data-level="easy">
-                    ЛЕГКО
-                    <div class="difficulty-desc">Чек-поинты: 300м | Скорость: 0.8x</div>
-                </div>
-                <div class="difficulty-btn" data-level="medium">
-                    СРЕДНЕ
-                    <div class="difficulty-desc">Чек-поинты: 500м | Скорость: 1.0x</div>
-                </div>
-                <div class="difficulty-btn" data-level="hard">
-                    СЛОЖНО
-                    <div class="difficulty-desc">Чек-поинты: 750м | Скорость: 1.3x</div>
+            
+            <div class="settings-section">
+                <div class="section-title">СЛОЖНОСТЬ</div>
+                <div class="selector-group difficulty-selector">
+                    <div class="selector-btn" data-level="easy">
+                        ЛЕГКО
+                        <div class="btn-desc">Чек-поинты: 500м | Без штрафов</div>
+                    </div>
+                    <div class="selector-btn" data-level="medium">
+                        СРЕДНЕ
+                        <div class="btn-desc">Чек-поинты: 750м | Сброс комбо</div>
+                    </div>
+                    <div class="selector-btn" data-level="hard">
+                        СЛОЖНО
+                        <div class="btn-desc">Чек-поинты: 1000м | Потеря бонусов</div>
+                    </div>
                 </div>
             </div>
+
+            <div class="settings-section">
+                <div class="section-title">ДЕТАЛИЗАЦИЯ ТРАССЫ</div>
+                <div class="selector-group detail-selector">
+                    <div class="selector-btn" data-detail="low">
+                        НИЗКАЯ
+                        <div class="btn-desc">Только чек-поинты</div>
+                    </div>
+                    <div class="selector-btn" data-detail="medium">
+                        СРЕДНЯЯ
+                        <div class="btn-desc">Маркеры через 500м</div>
+                    </div>
+                    <div class="selector-btn" data-detail="high">
+                        ВЫСОКАЯ
+                        <div class="btn-desc">Маркеры через 100м</div>
+                    </div>
+                </div>
+            </div>
+
             <button class="back-btn">НАЗАД</button>
         `;
         
-        this.diffButtons = this.container.querySelectorAll('.difficulty-btn');
+        this.diffButtons = this.container.querySelectorAll('.difficulty-selector .selector-btn');
+        this.detailButtons = this.container.querySelectorAll('.detail-selector .selector-btn');
         this.backBtn = this.container.querySelector('.back-btn');
         
         this._setupEvents();
-        this._loadCurrentDifficulty();
     }
 
     _setupEvents() {
@@ -111,37 +148,50 @@ export class SettingsScreen {
                 this.setDifficulty(level);
             });
         });
+
+        this.detailButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const detail = btn.dataset.detail;
+                this.setMarkerDetail(detail);
+            });
+        });
         
         this.backBtn.addEventListener('click', () => {
             this.hide();
-            // Возвращаемся в главное меню (или в то меню, откуда пришли)
-            // Логика перехода будет управляться извне
             if (this.onBack) this.onBack();
         });
     }
 
-    _loadCurrentDifficulty() {
-        const current = storage.getDifficulty();
-        this._updateButtonStyles(current);
-    }
-
-    _updateButtonStyles(level) {
+    _loadSettings() {
+        const diff = storage.getDifficulty();
+        const detail = storage.getMarkerDetail();
+        
         this.diffButtons.forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.level === level);
+            btn.classList.toggle('active', btn.dataset.level === diff);
+        });
+
+        this.detailButtons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.detail === detail);
         });
     }
 
     setDifficulty(level) {
         storage.setDifficulty(level);
-        this._updateButtonStyles(level);
+        this._loadSettings();
         if (this.onDifficultyChange) this.onDifficultyChange(level);
+    }
+
+    setMarkerDetail(detail) {
+        storage.setMarkerDetail(detail);
+        this._loadSettings();
+        if (this.onDetailChange) this.onDetailChange(detail);
     }
 
     show(onBackCallback) {
         this.onBack = onBackCallback;
         this.container.classList.remove('hidden');
         this.container.classList.add('active');
-        this._loadCurrentDifficulty();
+        this._loadSettings();
     }
 
     hide() {

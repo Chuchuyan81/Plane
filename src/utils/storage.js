@@ -7,6 +7,12 @@ export const storage = {
     setDifficulty(level) {
         localStorage.setItem(STORAGE_KEYS.DIFFICULTY, level);
     },
+    getMarkerDetail() {
+        return localStorage.getItem(STORAGE_KEYS.MARKER_DETAIL) || GAME_CONSTANTS.MARKER_DETAIL_LEVELS.MEDIUM;
+    },
+    setMarkerDetail(level) {
+        localStorage.setItem(STORAGE_KEYS.MARKER_DETAIL, level);
+    },
     getBestScore() {
         return parseInt(localStorage.getItem(STORAGE_KEYS.BEST_SCORE)) || 0;
     },

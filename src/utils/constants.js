@@ -6,9 +6,14 @@ export const GAME_CONSTANTS = {
         HARD: 'hard'
     },
     CHECKPOINT_INTERVALS: {
-        easy: 300,
-        medium: 500,
-        hard: 750
+        easy: 500,
+        medium: 750,
+        hard: 1000
+    },
+    MARKER_DETAIL_LEVELS: {
+        LOW: 'low',
+        MEDIUM: 'medium',
+        HIGH: 'high'
     },
     OBSTACLE_SPEED_MODIFIERS: {
         easy: 0.8,
@@ -29,6 +34,7 @@ export const GAME_CONSTANTS = {
 
 export const STORAGE_KEYS = {
     DIFFICULTY: 'skyAce_difficulty',
+    MARKER_DETAIL: 'skyAce_markerDetail',
     BEST_SCORE: 'skyAce_bestScore',
     TOTAL_KILLS: 'skyAce_totalKills',
     TOTAL_BOSSES: 'skyAce_totalBosses'
