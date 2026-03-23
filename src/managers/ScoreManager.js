@@ -1,4 +1,5 @@
 import { storage } from '../utils/storage.js';
+import { BossConfig } from '../config/BossConfig.js';
 
 /**
  * Управление счётом и комбо
@@ -34,20 +35,45 @@ export class ScoreManager {
         if (!checkpoint) return;
         this.score = checkpoint.score;
         
-        // По ТЗ: Штраф комбо при смерти
+        // ТЗ 1.1 §5: Easy — комбо до 1; Medium — до 0 (игровой минимум x1); Hard — +10% штраф к очкам
         if (checkpoint.type === 'PRE_BOSS' || checkpoint.type === 'MID_BOSS') {
             if (difficulty === 'easy') {
                 this.combo = 1.0;
+            } else if (difficulty === 'medium') {
+                this.combo = 1.0;
             } else {
                 this.combo = 1.0;
-                if (difficulty === 'hard') {
-                    // -10% очков на Hard при смерти от босса
-                    this.score = Math.floor(this.score * 0.9);
-                }
+                this.score = Math.floor(this.score * 0.9);
             }
         } else {
             this.combo = 1.0;
         }
+    }
+
+    /**
+     * Базовые очки за тип врага с учётом сложности (ТЗ 1.1)
+     * @param {'drone'|'kamikaze'|'shooter'} enemyType
+     * @param {string} difficulty - easy | medium | hard
+     */
+    getEnemyKillPoints(enemyType, difficulty = 'medium') {
+        const base = BossConfig.ENEMY_SCORE[enemyType] ?? 150;
+        const mult = BossConfig.ENEMY_SCORE_DIFFICULTY_MULT[difficulty] ?? 1.0;
+        return Math.floor(base * mult);
+    }
+
+    /**
+     * Бонус за победу над боссом (без комбо-множителя счёта — начисляется целиком)
+     * @param {number} combo - текущее комбо
+     * @param {boolean} noDamage - игрок не получал урон в бою
+     */
+    addBossDefeatBonus(combo, noDamage) {
+        const { BASE, COMBO_MULTIPLIER, NO_DAMAGE } = BossConfig.BOSS_BONUS;
+        const noDamageMult = noDamage ? NO_DAMAGE : 1.0;
+        const raw = (BASE + combo * COMBO_MULTIPLIER) * noDamageMult;
+        const bonus = Math.floor(raw);
+        this.score += bonus;
+        console.log(`[ScoreManager] Boss defeat bonus: ${bonus} (combo=${combo}, noDamage=${noDamage})`);
+        return bonus;
     }
 
     /**

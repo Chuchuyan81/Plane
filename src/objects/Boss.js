@@ -1,5 +1,6 @@
 import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
 import { BossState } from '../core/GameState.js';
+import { BossConfig } from '../config/BossConfig.js';
 
 export class Boss {
     constructor(scene, difficulty, bossesKilled, playerPos) {
@@ -9,7 +10,7 @@ export class Boss {
 
         this.maxHp = this._calculateHp();
         this.hp = this.maxHp;
-        
+
         this.type = 'boss';
         this.state = BossState.ENTERING;
         this.isDead = false;
@@ -17,17 +18,19 @@ export class Boss {
         this.moveTimer = 0;
         this.gameTime = 0;
 
+        /** Множитель скорости пуль (assist на Hard) */
+        this.bulletSpeedMultiplier = 1;
+
+        /** Не стрелять первые N секунд после респавна */
+        this.attackHoldRemaining = 0;
+
         this._initMesh(playerPos);
     }
 
     _calculateHp() {
-        let baseHp = 100 + this.bossesKilled * 50;
-        const multipliers = {
-            easy: 1.0,
-            medium: 1.5,
-            hard: 2.2
-        };
-        return Math.floor(baseHp * (multipliers[this.difficulty] || 1.5));
+        const base = BossConfig.BOSS_BASE_HP + this.bossesKilled * BossConfig.BOSS_HP_PER_KILL;
+        const mult = BossConfig.HP_MULTIPLIER[this.difficulty] ?? 1.5;
+        return Math.floor(base * mult);
     }
 
     _initMesh(playerPos) {
@@ -39,6 +42,13 @@ export class Boss {
         this.scene.add(this.mesh);
     }
 
+    /**
+     * @param {number} seconds — задержка атаки после респавна
+     */
+    setAttackHold(seconds) {
+        this.attackHoldRemaining = Math.max(this.attackHoldRemaining, seconds);
+    }
+
     update(dt, playerPos, gameTime) {
         if (this.isDead) return;
         this.gameTime = gameTime;
@@ -48,27 +58,34 @@ export class Boss {
             const targetY = 30;
             this.mesh.position.z += (targetZ - this.mesh.position.z) * 1.5 * dt;
             this.mesh.position.y += (targetY - this.mesh.position.y) * dt;
-            
+
             if (Math.abs(this.mesh.position.z - targetZ) < 5) {
+                if (this.state === BossState.ENTERING) {
+                    window.dispatchEvent(new CustomEvent('boss-warning-hide'));
+                }
                 this.state = BossState.ACTIVE;
             }
         } else if (this.state === BossState.ACTIVE) {
             this.mesh.position.z = playerPos.z - 70;
             this.mesh.position.x = Math.sin(this.gameTime * 0.5) * 25;
-            
-            this.fireTimer += dt;
-            this.moveTimer += dt;
 
-            const fireRate = this.difficulty === 'hard' ? 0.35 : (this.difficulty === 'medium' ? 0.5 : 0.7);
-            
-            if (this.fireTimer > fireRate) {
-                this._shoot(playerPos);
-                this.fireTimer = 0;
-            }
-            
-            if (this.moveTimer > 5.0) {
-                this._shootPattern(playerPos);
-                this.moveTimer = 0;
+            if (this.attackHoldRemaining > 0) {
+                this.attackHoldRemaining -= dt;
+            } else {
+                this.fireTimer += dt;
+                this.moveTimer += dt;
+
+                const fireRate = this.difficulty === 'hard' ? 0.35 : this.difficulty === 'medium' ? 0.5 : 0.7;
+
+                if (this.fireTimer > fireRate) {
+                    this._shoot(playerPos);
+                    this.fireTimer = 0;
+                }
+
+                if (this.moveTimer > 5.0) {
+                    this._shootPattern(playerPos);
+                    this.moveTimer = 0;
+                }
             }
         } else if (this.state === BossState.LEAVING) {
             this.mesh.position.z -= 100 * dt;
@@ -78,7 +95,7 @@ export class Boss {
 
     takeDamage(dmg) {
         if (this.isDead || this.state !== BossState.ACTIVE) return false;
-        
+
         this.hp -= dmg;
         if (this.hp <= 0) {
             this.die();
@@ -90,30 +107,32 @@ export class Boss {
     die() {
         this.isDead = true;
         this.state = BossState.DESTROYED;
-        // Logic for death (particles, etc.) should be handled by manager or in index.html
     }
 
     _shoot(playerPos) {
-        // Trigger event or callback for shooting
-        const event = new CustomEvent('boss-shoot', {
-            detail: {
-                position: this.mesh.position.clone(),
-                target: playerPos.clone(),
-                type: 'normal'
-            }
-        });
-        window.dispatchEvent(event);
+        window.dispatchEvent(
+            new CustomEvent('boss-shoot', {
+                detail: {
+                    position: this.mesh.position.clone(),
+                    target: playerPos.clone(),
+                    type: 'normal',
+                    speedMultiplier: this.bulletSpeedMultiplier
+                }
+            })
+        );
     }
 
     _shootPattern(playerPos) {
-        const event = new CustomEvent('boss-shoot', {
-            detail: {
-                position: this.mesh.position.clone(),
-                target: playerPos.clone(),
-                type: 'pattern'
-            }
-        });
-        window.dispatchEvent(event);
+        window.dispatchEvent(
+            new CustomEvent('boss-shoot', {
+                detail: {
+                    position: this.mesh.position.clone(),
+                    target: playerPos.clone(),
+                    type: 'pattern',
+                    speedMultiplier: this.bulletSpeedMultiplier
+                }
+            })
+        );
     }
 
     cleanup() {

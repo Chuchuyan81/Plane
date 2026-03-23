@@ -42,10 +42,10 @@ export class CheckpointManager {
      */
     forceSave(metadata = {}) {
         const checkpoint = {
-            distance: metadata.distance || this.lastSavedDistance,
-            score: metadata.score || 0,
-            comboMultiplier: metadata.combo || 1,
-            activePowerUps: [], // handled in save() if needed, but for forceSave we use what is passed
+            distance: metadata.distance !== undefined ? metadata.distance : this.lastSavedDistance,
+            score: metadata.score !== undefined ? metadata.score : 0,
+            comboMultiplier: metadata.combo !== undefined ? metadata.combo : 1,
+            activePowerUps: Array.isArray(metadata.activePowerUps) ? metadata.activePowerUps : [],
             type: metadata.type || 'STANDARD',
             timestamp: Date.now(),
             ...metadata
@@ -126,6 +126,14 @@ export class CheckpointManager {
             next: this.interval,
             percent: Math.round(percent)
         };
+    }
+
+    /**
+     * Сериализация активных бонусов игрока (публично для MID_BOSS и т.п.)
+     * @param {object} player - объект игрока (mesh + поля бонусов)
+     */
+    serializeActivePowerUps(player) {
+        return this._serializePowerUps(player);
     }
 
     /**

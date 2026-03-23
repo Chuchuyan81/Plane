@@ -9,6 +9,26 @@ export class PhysicsEngine {
         this.difficulty = 1.0;
         this.speedModifiers = GAME_CONSTANTS.OBSTACLE_SPEED_MODIFIERS;
         this.spawnModifiers = GAME_CONSTANTS.ENEMY_SPAWN_MODIFIERS;
+        /** Заморозка прогресса дистанции (бой с боссом) */
+        this._distanceProgressFrozen = false;
+        this._frozenDistance = 0;
+    }
+
+    /**
+     * Заморозить прогресс дистанции (во время BOSS_FIGHT)
+     */
+    freezeDistanceProgress() {
+        this._distanceProgressFrozen = true;
+        this._frozenDistance = this.distance;
+        console.log('[Physics] Distance progress frozen at', this._frozenDistance);
+    }
+
+    /**
+     * Возобновить обновление дистанции по позиции игрока
+     */
+    resumeDistanceProgress() {
+        this._distanceProgressFrozen = false;
+        console.log('[Physics] Distance progress resumed');
     }
 
     /**
@@ -16,6 +36,9 @@ export class PhysicsEngine {
      * @param {THREE.Vector3} playerPosition - позиция игрока
      */
     updateDistance(playerPosition) {
+        if (this._distanceProgressFrozen) {
+            return this._frozenDistance;
+        }
         // Пройденная дистанция в этой игре — это перемещение игрока по отрицательной оси Z
         this.distance = Math.floor(Math.max(0, -playerPosition.z));
         return this.distance;
@@ -34,6 +57,8 @@ export class PhysicsEngine {
      */
     resetDistance(value = 0) {
         this.distance = value;
+        this._frozenDistance = value;
+        this._distanceProgressFrozen = false;
     }
 
     /**

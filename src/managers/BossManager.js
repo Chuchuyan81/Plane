@@ -1,119 +1,140 @@
-import { GameState, BossState } from '../core/GameState.js';
+import { BossState } from '../core/GameState.js';
 import { Boss } from '../objects/Boss.js';
+import { BossConfig } from '../config/BossConfig.js';
 
 export class BossManager {
-    constructor(difficulty, scoreManager, checkpointManager, uiManager) {
+    constructor(difficulty, scoreManager, checkpointManager, uiManager, physics) {
         this.difficulty = difficulty;
         this.scoreManager = scoreManager;
         this.checkpointManager = checkpointManager;
         this.uiManager = uiManager;
+        this.physics = physics;
+        /** @type {import('./RespawnManager.js').RespawnManager|null} */
+        this._respawnManager = null;
 
         this.boss = null;
         this.isBossActive = false;
-        
-        // Пороги спавна
-        this.spawnThresholds = {
-            easy: 10000,
-            medium: 15000,
-            hard: 20000
-        };
 
-        this.nextBossThreshold = this.spawnThresholds[difficulty] || 15000;
-        
-        this.playerNoDamage = true; // For no damage bonus
+        this.nextBossThreshold = this._thresholdForDifficulty(difficulty);
+
+        this.playerNoDamage = true;
+        this._preloadLogged = false;
     }
 
     /**
-     * Проверка порога спавна босса
+     * Связь с RespawnManager (после создания, т.к. циклическая зависимость)
+     * @param {import('./RespawnManager.js').RespawnManager} rm
      */
-    checkBossSpawn(currentScore) {
-        if (this.isBossActive || currentScore < this.nextBossThreshold) return false;
-        
-        this.spawnBoss();
-        return true;
+    attachRespawnManager(rm) {
+        this._respawnManager = rm;
+    }
+
+    _thresholdForDifficulty(d) {
+        return BossConfig.SCORE_THRESHOLD[d] ?? BossConfig.SCORE_THRESHOLD.medium;
     }
 
     /**
-     * Создание босса
+     * Только проверка порога (спавн вызывает игра)
      */
-    spawnBoss(scene, playerPos, savedBossHp = null) {
+    shouldSpawnBoss(currentScore) {
+        if (this.isBossActive) return false;
+        return currentScore >= this.nextBossThreshold;
+    }
+
+    /**
+     * @param {boolean} fromRetry — повтор после смерти (не сбрасывать счётчик попыток)
+     */
+    spawnBoss(scene, player, savedBossHp = null, fromRetry = false) {
         this.isBossActive = true;
-        this.playerNoDamage = true; // Сброс флага получения урона для нового босса
+        this.playerNoDamage = true;
 
-        // 1. Остановить спавн обычных врагов (handled in gameLoop)
-        // 2. Заблокировать создание новых чек-поинтов
         this.checkpointManager.lockCheckpointCreation();
-        
-        // 3. Сохранить состояние игры (PRE_BOSS чек-поинт)
-        if (!savedBossHp) {
-            this.checkpointManager.forceSave({ 
+        this.physics.freezeDistanceProgress();
+
+        if (!fromRetry) {
+            this._respawnManager?.resetBossAttemptDeaths();
+            this.checkpointManager.forceSave({
                 type: 'PRE_BOSS',
                 score: this.scoreManager.score,
                 combo: this.scoreManager.combo,
-                distance: Math.round(playerPos.z)
+                distance: Math.floor(Math.max(0, -player.position.z)),
+                activePowerUps: this.checkpointManager.serializeActivePowerUps(player)
             });
+            this._preloadLogged = false;
         }
 
-        // 4. Заморозить прогресс дистанции (handled in gameLoop)
-        // 5. Показать полосу здоровья босса
-        this.boss = new Boss(scene, this.difficulty, this.scoreManager.bossesKilled, playerPos);
-        
-        if (savedBossHp !== null) {
+        this.boss = new Boss(scene, this.difficulty, this.scoreManager.bossesKilled, player.position);
+
+        if (savedBossHp !== null && savedBossHp !== undefined) {
             this.boss.hp = savedBossHp;
             this.boss.halfHpSaved = savedBossHp <= this.boss.maxHp * 0.5;
         }
 
         this.uiManager.setBossWarning(true);
-        this.uiManager.updateHUD({ 
-            bossHp: this.boss.hp / this.boss.maxHp, 
-            bossCurrentHp: this.boss.hp, 
+        this._showBossHUD();
+
+        this.uiManager.notify('WARNING: BOSS APPROACHING', 'warning', 3000);
+        console.log(`[BossManager] Boss spawned at score: ${this.scoreManager.score}, threshold: ${this.nextBossThreshold}`);
+    }
+
+    _showBossHUD() {
+        if (!this.boss) return;
+        this.uiManager.updateHUD({
+            bossHp: this.boss.hp / this.boss.maxHp,
+            bossCurrentHp: this.boss.hp,
             bossMaxHp: this.boss.maxHp,
-            bossName: "GENERAL " + (this.scoreManager.bossesKilled + 1)
+            bossName: 'GENERAL ' + (this.scoreManager.bossesKilled + 1)
         });
-        
-        // 6. Переключить GameState в BOSS_FIGHT (handled in gameLoop)
-        
-        // Уведомление
-        this.uiManager.notify("WARNING: BOSS APPROACHING", "warning", 3000);
-        
-        console.log(`[BossManager] Boss spawned at score: ${this.scoreManager.score}`);
+    }
+
+    _hideBossHUD() {
+        this.uiManager.updateHUD({ bossHp: 0 });
+        this.uiManager.setBossWarning(false);
     }
 
     /**
-     * Обновление логики босса
+     * Прогресс до босса (для UI); при ≥80% — лог прелоада
      */
+    getBossProgressForUI(currentScore) {
+        const target = this.nextBossThreshold;
+        const ratio = target > 0 ? Math.min(1, currentScore / target) : 0;
+        if (!this._preloadLogged && ratio >= BossConfig.PRELOAD_PROGRESS) {
+            this._preloadLogged = true;
+            console.log('[BossManager] Boss preload threshold reached (80% progress)');
+        }
+        return { current: currentScore, target, ratio };
+    }
+
     updateBoss(dt, player, gameTime) {
         if (!this.boss || this.boss.isDead) return;
 
         this.boss.update(dt, player.position, gameTime);
-        
-        // Update UI health bar
-        this.uiManager.updateHUD({ 
+
+        this.uiManager.updateHUD({
             bossHp: this.boss.hp / this.boss.maxHp,
             bossCurrentHp: this.boss.hp,
             bossMaxHp: this.boss.maxHp,
-            bossName: "GENERAL " + (this.scoreManager.bossesKilled + 1)
+            bossName: 'GENERAL ' + (this.scoreManager.bossesKilled + 1)
         });
-        
-        // Check for 50% HP threshold (Easy/Medium)
+
         if (this.boss.hp <= this.boss.maxHp * 0.5 && !this.boss.halfHpSaved) {
             this.boss.halfHpSaved = true;
-            this.uiManager.notify("BOSS DAMAGED", "info", 2000);
-            
-            if (this.difficulty === 'easy' || this.difficulty === 'medium') {
+            this.uiManager.notify('BOSS DAMAGED', 'info', 2000);
+
+            if (this.difficulty === 'easy') {
                 this.checkpointManager.forceSave({
                     type: 'MID_BOSS',
                     score: this.scoreManager.score,
                     bossHp: this.boss.hp,
-                    playerShield: player.shield
+                    activePowerUps: this.checkpointManager.serializeActivePowerUps(player),
+                    playerShield: player.shield,
+                    distance: Math.floor(Math.max(0, -player.position.z))
                 });
+                console.log('[BossManager] MID_BOSS checkpoint (Easy)');
             }
         }
     }
 
-    /**
-     * Обработка попадания по боссу
-     */
     handleBossHit(damage) {
         if (!this.boss || this.boss.isDead) return false;
 
@@ -125,65 +146,71 @@ export class BossManager {
         return false;
     }
 
-    /**
-     * Обработка смерти босса
-     */
     onBossDefeated() {
         this.isBossActive = false;
-        
-        // Расчёт бонусных очков
-        const baseScore = 5000;
-        const comboMultiplier = this.scoreManager.combo * 100;
-        const noDamageBonus = this.playerNoDamage ? 1.5 : 1.0;
-        
-        const finalBonus = Math.floor((baseScore + comboMultiplier) * noDamageBonus);
-        
-        this.scoreManager.addScore(finalBonus);
+
+        const dropPosition = this.boss ? this.boss.mesh.position.clone() : null;
+
+        const finalBonus = this.scoreManager.addBossDefeatBonus(
+            this.scoreManager.combo,
+            this.playerNoDamage
+        );
         this.scoreManager.addBossKill();
 
-        // 2. Создать POST_BOSS чек-поинт
         this.checkpointManager.forceSave({ type: 'POST_BOSS' });
-        
-        // 3. Разблокировать спавн врагов
-        // 4. Разблокировать чек-поинты
         this.checkpointManager.unlockCheckpointCreation();
-        
-        // 5. Возобновить прогресс дистанции
-        // 6. Скрыть полосу здоровья босса
-        this.uiManager.updateHUD({ bossHp: 0 });
-        this.uiManager.setBossWarning(false);
-        
-        // 7. Вернуть GameState в PLAYING (handled in gameLoop)
-        
-        // 8. Показать уведомление о победе
-        this.uiManager.notify("BOSS DEFEATED!", "success", 4000);
-        
-        // Trigger visual effects (handled in game loop via a callback or event)
-        const event = new CustomEvent('boss-defeated', { detail: { bonus: finalBonus } });
-        window.dispatchEvent(event);
-        
-        this.nextBossThreshold += this.spawnThresholds[this.difficulty] || 15000;
-        
+
+        this.physics.resumeDistanceProgress();
+        this._hideBossHUD();
+
+        this.uiManager.updateHUD({ score: this.scoreManager.score });
+        this.uiManager.notify('BOSS DEFEATED!', 'success', 4000);
+
+        window.dispatchEvent(
+            new CustomEvent('boss-defeated', {
+                detail: { bonus: finalBonus, dropPosition }
+            })
+        );
+
+        this.nextBossThreshold += this._thresholdForDifficulty(this.difficulty);
+
+        if (this.boss) {
+            this.boss.cleanup();
+            this.boss = null;
+        }
+
         console.log(`[BossManager] Boss defeated! Bonus points: ${finalBonus}`);
     }
 
-    /**
-     * Вызывается при смерти игрока
-     */
     onPlayerDeath() {
-        // Handled by RespawnManager, but we can reset flag
         this.playerNoDamage = true;
     }
 
     /**
-     * Очистка при перезапуске
+     * Смена сложности из настроек
      */
-    cleanup() {
+    setDifficulty(level) {
+        this.difficulty = level;
+        if (!this.isBossActive) {
+            const thr = this._thresholdForDifficulty(level);
+            this.nextBossThreshold = Math.max(this.scoreManager.score, thr);
+        }
+    }
+
+    /**
+     * @param {{ resumePhysics?: boolean }} opts — при респавне перед тем же боссом не снимать заморозку дистанции здесь
+     */
+    cleanup(opts = {}) {
+        const resumePhysics = opts.resumePhysics !== false;
         if (this.boss) {
             this.boss.cleanup();
             this.boss = null;
         }
         this.isBossActive = false;
-        this.nextBossThreshold = this.spawnThresholds[this.difficulty] || 15000;
+        if (resumePhysics) {
+            this.physics.resumeDistanceProgress();
+        }
+        this.nextBossThreshold = this._thresholdForDifficulty(this.difficulty);
+        this._preloadLogged = false;
     }
 }

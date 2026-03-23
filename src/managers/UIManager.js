@@ -23,7 +23,11 @@ export class UIManager {
             bossHpContainer: document.getElementById('boss-hp-container'),
             bossHpBar: document.getElementById('boss-hp-bar'),
             powerupsHud: document.getElementById('powerups-hud'),
-            bossWarning: document.getElementById('boss-warning')
+            bossWarning: document.getElementById('boss-warning'),
+            bossProgressHud: document.getElementById('boss-progress-hud'),
+            bossProgressFill: document.getElementById('boss-progress-fill'),
+            bossProgressCurrent: document.getElementById('boss-progress-current'),
+            bossProgressTarget: document.getElementById('boss-progress-target')
         };
         
         this.checkpointBar = new CheckpointBar();
@@ -113,6 +117,41 @@ export class UIManager {
     setCheckpointBarVisible(visible) {
         if (visible) this.checkpointBar.show();
         else this.checkpointBar.hide();
+    }
+
+    /**
+     * Прогресс до босса (только PLAYING). ratio 0..1
+     * @param {number} currentScore
+     * @param {number} bossThreshold
+     * @param {boolean} visible
+     */
+    updateBossProgress(currentScore, bossThreshold, visible = true) {
+        const hud = this.hudElements.bossProgressHud;
+        const fill = this.hudElements.bossProgressFill;
+        if (!hud || !fill) return;
+
+        if (!visible || bossThreshold <= 0) {
+            hud.classList.add('hidden');
+            return;
+        }
+
+        hud.classList.remove('hidden');
+        const ratio = Math.min(1, Math.max(0, currentScore / bossThreshold));
+        fill.style.width = `${ratio * 100}%`;
+
+        if (this.hudElements.bossProgressCurrent) {
+            this.hudElements.bossProgressCurrent.textContent = String(Math.floor(currentScore));
+        }
+        if (this.hudElements.bossProgressTarget) {
+            this.hudElements.bossProgressTarget.textContent = String(bossThreshold);
+        }
+
+        fill.classList.remove('boss-progress-warn', 'boss-progress-danger');
+        if (ratio >= 0.95) {
+            fill.classList.add('boss-progress-danger');
+        } else if (ratio >= 0.8) {
+            fill.classList.add('boss-progress-warn');
+        }
     }
 }
 
