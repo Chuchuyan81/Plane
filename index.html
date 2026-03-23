@@ -386,9 +386,8 @@
     <div id="joystick-stick"></div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
 <script type="module">
+    import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
     import { GameState, BossState } from './src/core/GameState.js';
     import { physics } from './src/core/Physics.js';
     import { inputHandler } from './src/core/InputHandler.js';
@@ -656,6 +655,7 @@
     function startGame() {
         if (AudioController.enabled) AudioController.init();
         currentState = GameState.PLAYING;
+        stateBeforePause = GameState.PLAYING;
         scoreManager.reset();
         physics.resetDistance(0);
         checkpointManager.init(currentDifficulty);
@@ -711,6 +711,8 @@
     function gameOver(reason) {
         if (currentState === GameState.GAMEOVER || currentState === GameState.RESPAWNING) return;
         
+        console.log(`[Game] Game Over triggered by: ${reason}`);
+        
         const { mode, checkpoint } = respawnManager.handleDeath();
         
         if (checkpoint && mode !== 'GAME_OVER') {
@@ -725,12 +727,22 @@
         inputHandler.hideJoystick();
         const isNewRecord = scoreManager.saveStats();
         const state = scoreManager.getState();
-        ui.goScore.innerText = state.score;
-        ui.goMaxCombo.innerText = state.maxCombo;
-        ui.goKills.innerText = state.kills;
-        ui.goBosses.innerText = state.bossesKilled;
-        ui.newRecordMsg.classList.toggle('hidden', !isNewRecord);
-        ui.bestScoreDisplay.innerText = state.bestScore;
+        
+        // Получаем элементы UI
+        const goScore = document.getElementById('go-score');
+        const goMaxCombo = document.getElementById('go-max-combo');
+        const goKills = document.getElementById('go-kills');
+        const goBosses = document.getElementById('go-bosses');
+        const newRecordMsg = document.getElementById('new-record-msg');
+        const bestScoreDisplay = document.getElementById('menu-best-score');
+
+        if (goScore) goScore.innerText = state.score;
+        if (goMaxCombo) goMaxCombo.innerText = state.maxCombo;
+        if (goKills) goKills.innerText = state.kills;
+        if (goBosses) goBosses.innerText = state.bossesKilled;
+        if (newRecordMsg) newRecordMsg.classList.toggle('hidden', !isNewRecord);
+        if (bestScoreDisplay) bestScoreDisplay.innerText = state.bestScore;
+        
         uiManager.setCheckpointBarVisible(false);
         uiManager.updateBossProgress(0, 1, false);
         uiManager.showScreen('gameOver');
@@ -788,19 +800,22 @@
             respawnManager.grantInvulnerability(playerObj, 2000);
         } else {
             currentState = GameState.PLAYING;
+            uiManager.updateBossProgress(state.score, bossManager.nextBossThreshold, true);
         }
     }
 
     function onCheckpointReached() {
         // 1. Свечение контура самолета (Золотистая аура)
-        Mats.player.emissive.set(0xffd700);
-        Mats.player.emissiveIntensity = 2.0;
-        setTimeout(() => { 
-            if (Mats.player) {
-                Mats.player.emissive.set(0xffffff);
-                Mats.player.emissiveIntensity = 0; 
-            }
-        }, 300);
+        if (Mats.player) {
+            Mats.player.emissive.set(0xffd700);
+            Mats.player.emissiveIntensity = 2.0;
+            setTimeout(() => { 
+                if (Mats.player) {
+                    Mats.player.emissive.set(0xffffff);
+                    Mats.player.emissiveIntensity = 0; 
+                }
+            }, 300);
+        }
         // 2. Вибрация
         if (navigator.vibrate) navigator.vibrate(50);
         // 3. Звук (1200 Гц, высокий тон)
@@ -809,6 +824,7 @@
 
     function quitToMenu() {
         currentState = GameState.MENU;
+        stateBeforePause = GameState.MENU;
         checkpointManager.reset();
         markerPool.reset();
         uiManager.setCheckpointBarVisible(false);
@@ -924,7 +940,9 @@
     }
 
     function shoot() {
+        if (!player || !player.position) return;
         const createBullet = (offsetX = 0) => {
+            if (!Geoms.bullet || !Mats.bullet) return;
             const b = new THREE.Mesh(Geoms.bullet, Mats.bullet);
             b.position.copy(player.position);
             b.position.x += offsetX; b.position.z -= 2;
@@ -953,6 +971,8 @@
             return;
         }
         if (currentState !== GameState.PLAYING && currentState !== GameState.BOSS_FIGHT) return;
+        
+        const frameState = currentState; // Запоминаем состояние на начало кадра
         gameTime += dt;
         const isBossFight = currentState === GameState.BOSS_FIGHT;
         const diffMods = physics.getDifficultyModifiers(currentDifficulty);
@@ -1047,17 +1067,20 @@
         if (fireTimer > 0.15) { shoot(); fireTimer = 0; }
 
         for (let i = bullets.length - 1; i >= 0; i--) {
-            bullets[i].position.z -= 200 * dt;
-            if (bullets[i].position.z < player.position.z - 200) { scene.remove(bullets[i]); bullets.splice(i, 1); }
+            const b = bullets[i];
+            if (!b || !b.position) continue;
+            b.position.z -= 200 * dt;
+            if (b.position.z < player.position.z - 200) { scene.remove(b); bullets.splice(i, 1); }
         }
 
         for (let i = enemyBullets.length - 1; i >= 0; i--) {
             const eb = enemyBullets[i];
+            if (!eb || !eb.position) continue;
             eb.position.z += 80 * dt;
             if (eb.userData.vx) {
                 eb.position.x += eb.userData.vx * dt; eb.position.y += eb.userData.vy * dt; eb.position.z += (eb.userData.vz || 0) * dt;
             }
-            if (eb.position.distanceTo(player.position) < 3) {
+            if (player && player.position && eb.position.distanceTo(player.position) < 3) {
                 if (playerObj.isInvulnerable) {
                     scene.remove(eb); enemyBullets.splice(i, 1);
                     continue;
@@ -1068,12 +1091,13 @@
                 } else { 
                     bossManager.playerNoDamage = false;
                     gameOver('Сбит вражеским огнем!'); 
+                    return; 
                 }
                 scene.remove(eb); enemyBullets.splice(i, 1);
                 scoreManager.updateCombo(false); uiManager.updateHUD({ combo: 1 });
                 continue;
             }
-            if (eb.position.z > player.position.z + 20) { scene.remove(eb); enemyBullets.splice(i, 1); }
+            if (player && player.position && eb.position.z > player.position.z + 20) { scene.remove(eb); enemyBullets.splice(i, 1); }
         }
 
         spawnTimer += dt;
@@ -1095,17 +1119,21 @@
         }
 
         for (let i = enemies.length - 1; i >= 0; i--) {
-            const e = enemies[i]; e.update(dt);
+            const e = enemies[i]; 
+            if (!e || !e.mesh) continue;
+            e.update(dt);
             for (let j = bullets.length - 1; j >= 0; j--) {
-                if (bullets[j].position.distanceTo(e.mesh.position) < 4) {
-                    scene.remove(bullets[j]); bullets.splice(j, 1);
+                const b = bullets[j];
+                if (!b || !b.position) continue;
+                if (b.position.distanceTo(e.mesh.position) < 4) {
+                    scene.remove(b); bullets.splice(j, 1);
                     if (e.takeDamage(1)) { 
                         enemies.splice(i, 1); 
                     }
                     break;
                 }
             }
-            if (!e.isDead && player.position.distanceTo(e.mesh.position) < 4) {
+            if (e && !e.isDead && player && player.position && player.position.distanceTo(e.mesh.position) < 4) {
                 if (playerObj.isInvulnerable) {
                     /* неуязвимость */
                 } else if (player.shield > 0) {
@@ -1117,9 +1145,10 @@
                 } else { 
                     bossManager.playerNoDamage = false;
                     gameOver('Столкновение!'); 
+                    return;
                 }
             }
-            if (!e.isDead && e.mesh.position.z > player.position.z + 20) {
+            if (e && !e.isDead && player && player.position && e.mesh.position.z > player.position.z + 20) {
                 scene.remove(e.mesh); enemies.splice(i, 1);
                 scoreManager.updateCombo(false); uiManager.updateHUD({ combo: 1 });
             }
@@ -1137,6 +1166,7 @@
                     bossManager.playerNoDamage = false;
                     uiManager.notify('DEFEATED BY BOSS', 'error', 2000);
                     gameOver('DEFEATED BY BOSS');
+                    return; // ПРЕРЫВАЕМ UPDATE
                 }
             }
         }
@@ -1180,6 +1210,7 @@
         let dt = (now - lastTime) / 1000;
         if (dt > 0.1) dt = 0.1; // Ограничиваем dt для предотвращения рывков при лагах
         lastTime = now;
+        
         update(dt);
         renderer.render(scene, camera);
         requestAnimationFrame(animate);
