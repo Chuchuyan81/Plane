@@ -96,6 +96,14 @@ export class SettingsScreen {
             <div class="settings-title">НАСТРОЙКИ</div>
             
             <div class="settings-section">
+                <div class="section-title">ЗВУК</div>
+                <div class="selector-group sound-selector">
+                    <div class="selector-btn" data-sound="true">ВКЛЮЧЕН</div>
+                    <div class="selector-btn" data-sound="false">ВЫКЛЮЧЕН</div>
+                </div>
+            </div>
+
+            <div class="settings-section">
                 <div class="section-title">СЛОЖНОСТЬ</div>
                 <div class="selector-group difficulty-selector">
                     <div class="selector-btn" data-level="easy">
@@ -135,6 +143,7 @@ export class SettingsScreen {
         `;
         
         this.diffButtons = this.container.querySelectorAll('.difficulty-selector .selector-btn');
+        this.soundButtons = this.container.querySelectorAll('.sound-selector .selector-btn');
         this.detailButtons = this.container.querySelectorAll('.detail-selector .selector-btn');
         this.backBtn = this.container.querySelector('.back-btn');
         
@@ -146,6 +155,13 @@ export class SettingsScreen {
             btn.addEventListener('click', () => {
                 const level = btn.dataset.level;
                 this.setDifficulty(level);
+            });
+        });
+
+        this.soundButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const enabled = btn.dataset.sound === 'true';
+                this.setSoundEnabled(enabled);
             });
         });
 
@@ -164,10 +180,15 @@ export class SettingsScreen {
 
     _loadSettings() {
         const diff = storage.getDifficulty();
+        const sound = storage.getSoundEnabled();
         const detail = storage.getMarkerDetail();
         
         this.diffButtons.forEach(btn => {
             btn.classList.toggle('active', btn.dataset.level === diff);
+        });
+
+        this.soundButtons.forEach(btn => {
+            btn.classList.toggle('active', (btn.dataset.sound === 'true') === sound);
         });
 
         this.detailButtons.forEach(btn => {
@@ -179,6 +200,12 @@ export class SettingsScreen {
         storage.setDifficulty(level);
         this._loadSettings();
         if (this.onDifficultyChange) this.onDifficultyChange(level);
+    }
+
+    setSoundEnabled(enabled) {
+        storage.setSoundEnabled(enabled);
+        this._loadSettings();
+        if (this.onSoundChange) this.onSoundChange(enabled);
     }
 
     setMarkerDetail(detail) {

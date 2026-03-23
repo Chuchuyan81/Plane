@@ -7,6 +7,13 @@ export const storage = {
     setDifficulty(level) {
         localStorage.setItem(STORAGE_KEYS.DIFFICULTY, level);
     },
+    getSoundEnabled() {
+        const val = localStorage.getItem(STORAGE_KEYS.SOUND_ENABLED);
+        return val === null ? true : val === 'true';
+    },
+    setSoundEnabled(enabled) {
+        localStorage.setItem(STORAGE_KEYS.SOUND_ENABLED, enabled);
+    },
     getMarkerDetail() {
         return localStorage.getItem(STORAGE_KEYS.MARKER_DETAIL) || GAME_CONSTANTS.MARKER_DETAIL_LEVELS.HIGH;
     },

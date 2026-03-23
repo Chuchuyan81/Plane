@@ -34,6 +34,7 @@ export const GAME_CONSTANTS = {
 
 export const STORAGE_KEYS = {
     DIFFICULTY: 'skyAce_difficulty',
+    SOUND_ENABLED: 'skyAce_soundEnabled',
     MARKER_DETAIL: 'skyAce_markerDetail',
     BEST_SCORE: 'skyAce_bestScore',
     TOTAL_KILLS: 'skyAce_totalKills',
