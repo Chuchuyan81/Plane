@@ -486,6 +486,7 @@
         playExplosion() { this.playTone(100, 'sawtooth', 0.5, 0.2); },
         playPowerUp() { this.playTone(880, 'sine', 0.2, 0.1); },
         playHit() { this.playTone(150, 'square', 0.1, 0.2); },
+        playBossHit() { this.playTone(80, 'square', 0.15, 0.3); },
         playCheckpoint() { this.playTone(1200, 'sine', 0.15, 0.6, 1.2); }
     };
 
@@ -757,7 +758,8 @@
     }
 
     function pauseGame() {
-        if (currentState !== GameState.PLAYING) return;
+        if (currentState !== GameState.PLAYING && currentState !== GameState.BOSS_FIGHT) return;
+        stateBeforePause = currentState;
         currentState = GameState.PAUSED;
         inputHandler.hideJoystick();
         uiManager.showScreen('pauseMenu');
@@ -765,7 +767,7 @@
 
     function resumeGame() {
         if (currentState !== GameState.PAUSED) return;
-        currentState = GameState.PLAYING;
+        currentState = stateBeforePause;
         uiManager.showScreen('gameHud');
     }
 
@@ -954,6 +956,18 @@
 
         window.addEventListener('boss-warning-hide', () => {
             uiManager.setBossWarning(false);
+        });
+
+        window.addEventListener('boss-spawn-aid', () => {
+            const spawnPos = player.position.clone();
+            spawnPos.z -= 100; // Спавним впереди игрока
+            spawnPos.x = (Math.random() - 0.5) * 60;
+            spawnPos.y = 10 + Math.random() * 40;
+            spawnPowerUp(spawnPos, true);
+        });
+
+        window.addEventListener('boss-hit', () => {
+            AudioController.playBossHit();
         });
 
         window.addEventListener('boss-defeated', (e) => {

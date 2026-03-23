@@ -17,7 +17,7 @@ export const BossConfig = {
     },
 
     /** Базовое HP босса до множителя сложности */
-    BOSS_BASE_HP: 100,
+    BOSS_BASE_HP: 50,
     BOSS_HP_PER_KILL: 50,
 
     RESPAWN_ASSIST: {

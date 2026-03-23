@@ -19,6 +19,8 @@ export class BossManager {
 
         this.playerNoDamage = true;
         this._preloadLogged = false;
+        
+        this.powerUpSpawnTimer = 0;
     }
 
     /**
@@ -109,6 +111,13 @@ export class BossManager {
         if (!this.boss || this.boss.isDead) return;
 
         this.boss.update(dt, player.position, gameTime);
+        
+        // Спавн бонусов во время битвы
+        this.powerUpSpawnTimer += dt;
+        if (this.powerUpSpawnTimer > 15) {
+            this.powerUpSpawnTimer = 0;
+            window.dispatchEvent(new CustomEvent('boss-spawn-aid'));
+        }
 
         this.uiManager.updateHUD({
             bossHp: this.boss.hp / this.boss.maxHp,
@@ -137,6 +146,9 @@ export class BossManager {
 
     handleBossHit(damage) {
         if (!this.boss || this.boss.isDead) return false;
+
+        this.boss.flashHit();
+        window.dispatchEvent(new CustomEvent('boss-hit'));
 
         const isKilled = this.boss.takeDamage(damage);
         if (isKilled) {

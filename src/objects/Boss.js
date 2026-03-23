@@ -36,11 +36,31 @@ export class Boss {
 
     _initMesh(playerPos) {
         const geom = new THREE.BoxGeometry(12, 5, 8);
-        const mat = new THREE.MeshPhongMaterial({ color: 0x2c3e50, flatShading: true });
+        const mat = new THREE.MeshPhongMaterial({ 
+            color: 0x2c3e50, 
+            flatShading: true,
+            emissive: 0xffffff,
+            emissiveIntensity: 0
+        });
         this.mesh = new THREE.Mesh(geom, mat);
         this.mesh.castShadow = true;
         this.mesh.position.set(0, 30, playerPos.z - 150);
         this.scene.add(this.mesh);
+    }
+
+    flashHit() {
+        if (!this.mesh || !this.mesh.material) return;
+        
+        const mat = this.mesh.material;
+        mat.emissive.set(0xff0000);
+        mat.emissiveIntensity = 1.0;
+        
+        setTimeout(() => {
+            if (mat) {
+                mat.emissive.set(0xffffff);
+                mat.emissiveIntensity = 0;
+            }
+        }, 100);
     }
 
     /**
