@@ -49,5 +49,23 @@ export const BossConfig = {
     },
 
     /** Прелоад лог при заполнении прогресс-бара (доля от порога) */
-    PRELOAD_PROGRESS: 0.8
+    PRELOAD_PROGRESS: 0.8,
+
+    PLAYER: {
+        MAX_HP: 100,
+        BULLET_DAMAGE: 1,
+        FIRE_INTERVAL: 0.15,
+        COLLISION_DAMAGE: {
+            bullet: 20,
+            enemy: 50,
+            boss: 100
+        }
+    },
+
+    POWERUPS: {
+        REPAIR_AMOUNT: 30,
+        DAMAGE_BOOST: 1, // Дополнительный урон
+        FIRE_RATE_BOOST: 0.05, // Уменьшение интервала
+        DURATION: 10 // Длительность временных бонусов (сек)
+    }
 };

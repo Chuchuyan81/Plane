@@ -260,6 +260,40 @@
             margin-top: 4px;
         }
 
+        /* Здоровье игрока */
+        #player-hp-container {
+            width: 150px;
+            height: 12px;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.5);
+            border-radius: 6px;
+            margin-top: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        #player-hp-bar {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #2ecc71, #27ae60);
+            transition: width 0.3s ease, background 0.3s;
+        }
+        #player-hp-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            top: 0;
+            left: 0;
+            font-size: 9px;
+            line-height: 12px;
+            color: white;
+            font-weight: bold;
+            text-shadow: 1px 1px 1px black;
+        }
+        .hp-low {
+            background: linear-gradient(90deg, #e74c3c, #c0392b) !important;
+            animation: pulse-red 1s infinite;
+        }
+
         #powerups-hud {
             position: absolute;
             bottom: 120px;
@@ -285,6 +319,9 @@
         .powerup-icon.shield { border-color: #3498db; }
         .powerup-icon.speed { border-color: #2ecc71; }
         .powerup-icon.multishot { border-color: #f1c40f; }
+        .powerup-icon.repair { border-color: #e74c3c; }
+        .powerup-icon.weapon_damage { border-color: #9b59b6; }
+        .powerup-icon.weapon_rate { border-color: #34495e; }
 
         .icon-btn {
             position: absolute;
@@ -335,6 +372,10 @@
                 <span>ДИСТАНЦИЯ: <span id="hud-distance">0</span> м</span>
             </div>
             <div id="combo-container">COMBO x<span id="hud-combo">1</span></div>
+            <div id="player-hp-container">
+                <div id="player-hp-bar"></div>
+                <div id="player-hp-text"><span id="player-hp-current">100</span> / <span id="player-hp-max">100</span></div>
+            </div>
             <div id="boss-progress-hud" class="hidden">
                 <div class="progress-label">NEXT BOSS</div>
                 <div class="progress-bar">
@@ -397,6 +438,7 @@
     import { scoreManager } from './src/managers/ScoreManager.js';
     import { uiManager } from './src/managers/UIManager.js';
     import { GAME_CONSTANTS, STORAGE_KEYS } from './src/utils/constants.js';
+    import { BossConfig } from './src/config/BossConfig.js';
     import { storage } from './src/utils/storage.js';
     import { GroundMarkerPool } from './src/objects/GroundMarkerPool.js';
     import { BossManager } from './src/managers/BossManager.js';
@@ -455,7 +497,10 @@
         boss: new THREE.BoxGeometry(12, 5, 8),
         bullet: new THREE.SphereGeometry(0.3, 8, 8),
         enemyBullet: new THREE.SphereGeometry(0.4, 8, 8),
-        powerUp: new THREE.OctahedronGeometry(1.5)
+        powerUp: new THREE.OctahedronGeometry(1.5),
+        repair: new THREE.BoxGeometry(1.5, 1.5, 1.5),
+        weapon_damage: new THREE.TorusGeometry(1, 0.4, 8, 16),
+        weapon_rate: new THREE.ConeGeometry(1, 2, 8)
     };
     const Mats = {
         drone: new THREE.MeshPhongMaterial({ color: 0xe67e22, flatShading: true }),
@@ -467,6 +512,9 @@
         shield: new THREE.MeshPhongMaterial({ color: 0x3498db, transparent: true, opacity: 0.5 }),
         speed: new THREE.MeshPhongMaterial({ color: 0x2ecc71, flatShading: true }),
         multishot: new THREE.MeshPhongMaterial({ color: 0xf1c40f, flatShading: true }),
+        repair: new THREE.MeshPhongMaterial({ color: 0xe74c3c, flatShading: true }),
+        weapon_damage: new THREE.MeshPhongMaterial({ color: 0x9b59b6, flatShading: true }),
+        weapon_rate: new THREE.MeshPhongMaterial({ color: 0x34495e, flatShading: true }),
         player: new THREE.MeshPhongMaterial({ color: 0x3498db, flatShading: true, emissive: 0xffffff, emissiveIntensity: 0 })
     };
 
@@ -540,10 +588,15 @@
     }
     const playerObj = createPlane();
     const player = playerObj.mesh;
-    player.hp = 1;
+    player.maxHp = BossConfig.PLAYER.MAX_HP;
+    player.hp = player.maxHp;
     player.shield = 0;
     player.speedBoost = 0;
     player.multiShot = 0;
+    player.bulletDamage = BossConfig.PLAYER.BULLET_DAMAGE;
+    player.fireInterval = BossConfig.PLAYER.FIRE_INTERVAL;
+    player.damageBoost = 0;
+    player.rateBoost = 0;
     player.position.y = 40;
     scene.add(player);
 
@@ -626,9 +679,10 @@
 
     class PowerUp {
         constructor(pos) {
-            const types = ['shield', 'speed', 'multishot'];
+            const types = ['shield', 'speed', 'multishot', 'repair', 'weapon_damage', 'weapon_rate'];
             this.type = types[Math.floor(Math.random() * types.length)];
-            this.mesh = new THREE.Mesh(Geoms.powerUp, Mats[this.type]);
+            const geom = Geoms[this.type] || Geoms.powerUp;
+            this.mesh = new THREE.Mesh(geom, Mats[this.type]);
             this.mesh.position.copy(pos);
             scene.add(this.mesh);
         }
@@ -675,10 +729,15 @@
         
         player.position.set(0, 40, 0);
         player.rotation.set(0, 0, 0);
-        player.hp = 1; 
+        player.maxHp = BossConfig.PLAYER.MAX_HP;
+        player.hp = player.maxHp; 
         player.shield = 0;
         player.speedBoost = 0;
         player.multiShot = 0;
+        player.bulletDamage = BossConfig.PLAYER.BULLET_DAMAGE;
+        player.fireInterval = BossConfig.PLAYER.FIRE_INTERVAL;
+        player.damageBoost = 0;
+        player.rateBoost = 0;
         playerObj.isInvulnerable = false;
         Mats.player.emissiveIntensity = 0;
         
@@ -771,7 +830,12 @@
         
         player.position.set(0, 40, -lastCP.distance);
         player.visible = true;
-        player.hp = 1;
+        player.maxHp = BossConfig.PLAYER.MAX_HP;
+        player.hp = player.maxHp;
+        player.bulletDamage = BossConfig.PLAYER.BULLET_DAMAGE;
+        player.fireInterval = BossConfig.PLAYER.FIRE_INTERVAL;
+        player.damageBoost = 0;
+        player.rateBoost = 0;
         
         scoreManager.loadFromCheckpoint(lastCP, currentDifficulty);
         physics.resetDistance(lastCP.distance);
@@ -912,6 +976,36 @@
     let shakeIntensity = 0;
     function shakeScreen() { shakeIntensity = 2.0; }
 
+    function takePlayerDamage(amount, reason) {
+        if (playerObj.isInvulnerable) return;
+        
+        if (player.shield > 0) {
+            player.shield--;
+            AudioController.playHit();
+            if (player.shield <= 0) document.getElementById('pu-shield')?.remove();
+            return;
+        }
+
+        player.hp -= amount;
+        shakeScreen();
+        AudioController.playHit();
+        
+        // Вспышка урона
+        Mats.player.emissive.set(0xff0000);
+        Mats.player.emissiveIntensity = 2.0;
+        setTimeout(() => {
+            if (Mats.player) {
+                Mats.player.emissive.set(0xffffff);
+                Mats.player.emissiveIntensity = 0;
+            }
+        }, 150);
+
+        if (player.hp <= 0) {
+            bossManager.playerNoDamage = false;
+            gameOver(reason);
+        }
+    }
+
     function spawnEnemy() {
         if (bossManager.isBossActive) return;
         if (bossManager.shouldSpawnBoss(scoreManager.score)) {
@@ -943,11 +1037,14 @@
 
     function shoot() {
         if (!player || !player.position) return;
+        const currentDamage = player.bulletDamage + (player.damageBoost > 0 ? BossConfig.POWERUPS.DAMAGE_BOOST : 0);
+        
         const createBullet = (offsetX = 0) => {
             if (!Geoms.bullet || !Mats.bullet) return;
             const b = new THREE.Mesh(Geoms.bullet, Mats.bullet);
             b.position.copy(player.position);
             b.position.x += offsetX; b.position.z -= 2;
+            b.userData = { damage: currentDamage };
             scene.add(b); bullets.push(b);
         };
         createBullet(0);
@@ -963,7 +1060,8 @@
             el.id = id; el.className = 'powerup-icon ' + type;
             uiManager.hudElements.powerupsHud.appendChild(el);
         }
-        el.innerHTML = `<span>${type.toUpperCase()}</span><span id="${id}-time">${Math.ceil(duration)}s</span>`;
+        const label = type.replace('weapon_', '').toUpperCase();
+        el.innerHTML = `<span>${label}</span><span id="${id}-time">${Math.ceil(duration)}s</span>`;
     }
 
     function update(dt) {
@@ -992,11 +1090,7 @@
         
         player.position.x += move.x * pSpeed * dt;
         player.position.y += move.y * pSpeed * dt;
-        
-        // Замораживаем дистанцию во время боя с боссом
-        if (!isBossFight) {
-            player.position.z -= 60 * dt;
-        }
+        player.position.z -= 60 * dt; // ВСЕГДА движемся вперед, даже в бою с боссом
 
         player.position.x = Math.max(-GAME_CONSTANTS.LIMIT_X, Math.min(GAME_CONSTANTS.LIMIT_X, player.position.x));
         player.position.y = Math.max(GAME_CONSTANTS.FLOOR, Math.min(GAME_CONSTANTS.CEILING, player.position.y));
@@ -1019,6 +1113,14 @@
             player.multiShot -= dt; updatePowerUpHUD('multishot', player.multiShot);
             if (player.multiShot <= 0) document.getElementById('pu-multishot')?.remove();
         }
+        if (player.damageBoost > 0) {
+            player.damageBoost -= dt; updatePowerUpHUD('weapon_damage', player.damageBoost);
+            if (player.damageBoost <= 0) document.getElementById('pu-weapon_damage')?.remove();
+        }
+        if (player.rateBoost > 0) {
+            player.rateBoost -= dt; updatePowerUpHUD('weapon_rate', player.rateBoost);
+            if (player.rateBoost <= 0) document.getElementById('pu-weapon_rate')?.remove();
+        }
 
         // Плавное движение камеры (независимо от FPS)
         const lerpFactor = 1 - Math.exp(-5 * dt);
@@ -1027,21 +1129,25 @@
         camera.position.y += (player.position.y + 6 - camera.position.y) * lerpFactor + shakeY;
         camera.lookAt(player.position.x, player.position.y, player.position.z - 15);
 
-        let distance;
+        let displayDistance = physics.updateDistance(player.position);
+        const realDistance = Math.floor(Math.max(0, -player.position.z));
+
         if (isBossFight) {
-            distance = physics.updateDistance(player.position);
             bossManager.updateBoss(dt, player, gameTime);
         } else {
-            distance = physics.updateDistance(player.position);
-            if (checkpointManager.check(distance)) {
+            if (checkpointManager.check(displayDistance)) {
                 checkpointManager.save({ score: scoreManager.score, combo: scoreManager.combo, player: player });
                 onCheckpointReached();
             }
             uiManager.updateBossProgress(scoreManager.score, bossManager.nextBossThreshold, true);
         }
         
-        uiManager.updateHUD({ distance: distance });
-        uiManager.updateCheckpointProgress(checkpointManager.getProgress(distance));
+        uiManager.updateHUD({ 
+            distance: displayDistance, 
+            playerHp: player.hp, 
+            playerMaxHp: player.maxHp 
+        });
+        uiManager.updateCheckpointProgress(checkpointManager.getProgress(displayDistance));
 
         // ОБНОВЛЕННАЯ ЛОГИКА: Спаун маркеров ЗАРАНЕЕ (на 800м вперед)
         markerPool.update(dt);
@@ -1052,7 +1158,7 @@
         if (currentMarkerDetail === 'low') markerStep = cpInterval;
         else if (currentMarkerDetail === 'medium') markerStep = 500;
 
-        const lookAheadLimit = distance + 800;
+        const lookAheadLimit = realDistance + 800;
         while (lastMarkerDistance + markerStep <= lookAheadLimit) {
             const nextSpawnDist = lastMarkerDistance + markerStep;
             if (nextSpawnDist < 0) { 
@@ -1066,7 +1172,8 @@
         }
 
         fireTimer += dt;
-        if (fireTimer > 0.15) { shoot(); fireTimer = 0; }
+        const currentInterval = player.fireInterval - (player.rateBoost > 0 ? BossConfig.POWERUPS.FIRE_RATE_BOOST : 0);
+        if (fireTimer > Math.max(0.05, currentInterval)) { shoot(); fireTimer = 0; }
 
         for (let i = bullets.length - 1; i >= 0; i--) {
             const b = bullets[i];
@@ -1083,18 +1190,9 @@
                 eb.position.x += eb.userData.vx * dt; eb.position.y += eb.userData.vy * dt; eb.position.z += (eb.userData.vz || 0) * dt;
             }
             if (player && player.position && eb.position.distanceTo(player.position) < 3) {
-                if (playerObj.isInvulnerable) {
-                    scene.remove(eb); enemyBullets.splice(i, 1);
-                    continue;
-                }
-                if (player.shield > 0) {
-                    player.shield--; AudioController.playHit();
-                    if (player.shield <= 0) document.getElementById('pu-shield')?.remove();
-                } else { 
-                    bossManager.playerNoDamage = false;
-                    gameOver('Сбит вражеским огнем!'); 
-                    return; 
-                }
+                takePlayerDamage(BossConfig.PLAYER.COLLISION_DAMAGE.bullet, 'Сбит вражеским огнем!');
+                if (player.hp <= 0) return; // ПРЕРЫВАЕМ UPDATE если умерли
+                
                 scene.remove(eb); enemyBullets.splice(i, 1);
                 scoreManager.updateCombo(false); uiManager.updateHUD({ combo: 1 });
                 continue;
@@ -1108,9 +1206,12 @@
 
         if (bossManager.boss && !bossManager.boss.isDead && bossManager.boss.mesh) {
             for (let j = bullets.length - 1; j >= 0; j--) {
-                if (bullets[j].position.distanceTo(bossManager.boss.mesh.position) < 4) {
-                    scene.remove(bullets[j]); bullets.splice(j, 1);
-                    if (bossManager.handleBossHit(1)) {
+                const b = bullets[j];
+                if (!b || !b.position) continue;
+                if (b.position.distanceTo(bossManager.boss.mesh.position) < 4) {
+                    const dmg = b.userData.damage || 1;
+                    scene.remove(b); bullets.splice(j, 1);
+                    if (bossManager.handleBossHit(dmg)) {
                         currentState = GameState.PLAYING;
                         uiManager.updateBossProgress(scoreManager.score, bossManager.nextBossThreshold, true);
                         uiManager.updateHUD({ score: scoreManager.score });
@@ -1136,18 +1237,12 @@
                 }
             }
             if (e && !e.isDead && player && player.position && player.position.distanceTo(e.mesh.position) < 4) {
-                if (playerObj.isInvulnerable) {
-                    /* неуязвимость */
-                } else if (player.shield > 0) {
-                    player.shield--; 
+                takePlayerDamage(BossConfig.PLAYER.COLLISION_DAMAGE.enemy, 'Столкновение!');
+                if (player.hp <= 0) return;
+                
+                if (!playerObj.isInvulnerable) {
                     e.die(); 
-                    enemies.splice(i, 1); 
-                    AudioController.playHit();
-                    if (player.shield <= 0) document.getElementById('pu-shield')?.remove();
-                } else { 
-                    bossManager.playerNoDamage = false;
-                    gameOver('Столкновение!'); 
-                    return;
+                    enemies.splice(i, 1);
                 }
             }
             if (e && !e.isDead && player && player.position && e.mesh.position.z > player.position.z + 20) {
@@ -1158,18 +1253,9 @@
 
         if (bossManager.boss && !bossManager.boss.isDead && bossManager.boss.mesh) {
             const bm = bossManager.boss.mesh.position;
-            if (player.position.distanceTo(bm) < 4 && !playerObj.isInvulnerable) {
-                if (player.shield > 0) {
-                    player.shield--;
-                    bossManager.handleBossHit(5);
-                    AudioController.playHit();
-                    if (player.shield <= 0) document.getElementById('pu-shield')?.remove();
-                } else {
-                    bossManager.playerNoDamage = false;
-                    uiManager.notify('DEFEATED BY BOSS', 'error', 2000);
-                    gameOver('DEFEATED BY BOSS');
-                    return; // ПРЕРЫВАЕМ UPDATE
-                }
+            if (player.position.distanceTo(bm) < 4) {
+                takePlayerDamage(BossConfig.PLAYER.COLLISION_DAMAGE.boss, 'DEFEATED BY BOSS');
+                if (player.hp <= 0) return;
             }
         }
 
@@ -1177,8 +1263,15 @@
             const p = powerUps[i]; p.update(dt);
             if (player.position.distanceTo(p.mesh.position) < 4) {
                 if (p.type === 'shield') { player.shield = 1; updatePowerUpHUD('shield', 999); }
-                else if (p.type === 'speed') player.speedBoost = 10;
-                else if (p.type === 'multishot') player.multiShot = 10;
+                else if (p.type === 'speed') player.speedBoost = BossConfig.POWERUPS.DURATION;
+                else if (p.type === 'multishot') player.multiShot = BossConfig.POWERUPS.DURATION;
+                else if (p.type === 'repair') {
+                    player.hp = Math.min(player.maxHp, player.hp + BossConfig.POWERUPS.REPAIR_AMOUNT);
+                    uiManager.notify('REPAIRED +' + BossConfig.POWERUPS.REPAIR_AMOUNT + ' HP', 'success', 2000);
+                }
+                else if (p.type === 'weapon_damage') player.damageBoost = BossConfig.POWERUPS.DURATION;
+                else if (p.type === 'weapon_rate') player.rateBoost = BossConfig.POWERUPS.DURATION;
+                
                 AudioController.playPowerUp(); scene.remove(p.mesh); powerUps.splice(i, 1);
             } else if (p.mesh.position.z > player.position.z + 20) {
                 scene.remove(p.mesh); powerUps.splice(i, 1);

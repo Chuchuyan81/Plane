@@ -27,7 +27,10 @@ export class UIManager {
             bossProgressHud: document.getElementById('boss-progress-hud'),
             bossProgressFill: document.getElementById('boss-progress-fill'),
             bossProgressCurrent: document.getElementById('boss-progress-current'),
-            bossProgressTarget: document.getElementById('boss-progress-target')
+            bossProgressTarget: document.getElementById('boss-progress-target'),
+            playerHpBar: document.getElementById('player-hp-bar'),
+            playerHpCurrent: document.getElementById('player-hp-current'),
+            playerHpMax: document.getElementById('player-hp-max')
         };
         
         this.checkpointBar = new CheckpointBar();
@@ -66,7 +69,7 @@ export class UIManager {
 
     /**
      * Обновить HUD
-     * @param {object} data - { score, distance, combo, comboActive, bossHp, bossCurrentHp, bossMaxHp, bossName }
+     * @param {object} data - { score, distance, combo, comboActive, bossHp, bossCurrentHp, bossMaxHp, bossName, playerHp, playerMaxHp }
      */
     updateHUD(data) {
         if (data.score !== undefined) this.hudElements.score.innerText = data.score;
@@ -78,6 +81,10 @@ export class UIManager {
             setTimeout(() => this.hudElements.comboContainer.classList.remove('combo-active'), 100);
         }
         
+        if (data.playerHp !== undefined && data.playerMaxHp !== undefined) {
+            this.updatePlayerHP(data.playerHp, data.playerMaxHp);
+        }
+
         if (data.bossHp !== undefined) {
             if (data.bossHp > 0) {
                 if (!this.bossHUD.isVisible) {
@@ -88,6 +95,23 @@ export class UIManager {
                 this.bossHUD.hide();
             }
         }
+    }
+
+    /**
+     * Обновить полосу здоровья игрока
+     */
+    updatePlayerHP(current, max) {
+        const bar = this.hudElements.playerHpBar;
+        const currentText = this.hudElements.playerHpCurrent;
+        const maxText = this.hudElements.playerHpMax;
+        if (!bar || !currentText || !maxText) return;
+
+        const percent = Math.max(0, Math.min(1, current / max));
+        bar.style.width = `${percent * 100}%`;
+        currentText.innerText = Math.ceil(current);
+        maxText.innerText = Math.round(max);
+
+        bar.classList.toggle('hp-low', percent <= 0.3);
     }
 
     /**
