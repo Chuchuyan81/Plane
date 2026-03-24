@@ -845,6 +845,7 @@
         // Bullets update
         for (let i = bullets.length - 1; i >= 0; i--) {
             const b = bullets[i];
+            if (!b) continue;
             b.position.z -= 200 * dt;
             if (b.position.z < player.position.z - 200) { scene.remove(b); bullets.splice(i, 1); }
         }
@@ -852,12 +853,16 @@
         // Enemy bullets update
         for (let i = enemyBullets.length - 1; i >= 0; i--) {
             const eb = enemyBullets[i];
+            if (!eb) continue; // Safety check for undefined
+
             eb.position.z += 80 * dt;
             if (eb.userData.vx) {
                 eb.position.x += eb.userData.vx * dt; eb.position.y += eb.userData.vy * dt;
             }
             if (eb.position.distanceTo(player.position) < 3) {
                 takePlayerDamage(BossConfig.PLAYER.COLLISION_DAMAGE.bullet, 'Сбит вражеским огнем!');
+                if (currentState === GameState.RESPAWNING) return; // Stop update if died
+
                 scene.remove(eb); enemyBullets.splice(i, 1);
                 scoreManager.updateCombo(false); uiManager.updateCombo(1);
                 continue;
@@ -872,9 +877,13 @@
 
         for (let i = enemies.length - 1; i >= 0; i--) {
             const e = enemies[i]; 
+            if (!e || !e.mesh) continue; // Safety check
+
             e.update(dt);
             for (let j = bullets.length - 1; j >= 0; j--) {
                 const b = bullets[j];
+                if (!b) continue;
+
                 if (b.position.distanceTo(e.mesh.position) < 4) {
                     scene.remove(b); bullets.splice(j, 1);
                     if (e.takeDamage(1)) { 
@@ -885,8 +894,14 @@
                     break;
                 }
             }
+            
+            // Re-check enemy after damage loop
+            if (enemies[i] !== e) continue; 
+
             if (!e.isDead && player.position.distanceTo(e.mesh.position) < 4) {
                 takePlayerDamage(BossConfig.PLAYER.COLLISION_DAMAGE.enemy, 'Столкновение!');
+                if (currentState === GameState.RESPAWNING) return; // Stop update if died
+
                 if (!playerObj.isInvulnerable) {
                     e.die(); 
                     enemies.splice(i, 1);
@@ -902,6 +917,7 @@
         if (bossManager.boss && !bossManager.boss.isDead && bossManager.boss.mesh) {
             if (player.position.distanceTo(bossManager.boss.mesh.position) < 4) {
                 takePlayerDamage(BossConfig.PLAYER.COLLISION_DAMAGE.boss, 'DEFEATED BY BOSS');
+                if (currentState === GameState.RESPAWNING) return; // Stop update if died
             }
             
             // Critical fix: if player died above, bossManager.boss might be null now
@@ -910,6 +926,8 @@
             // Boss damage by player bullets
             for (let j = bullets.length - 1; j >= 0; j--) {
                 const b = bullets[j];
+                if (!b) continue;
+
                 if (b.position.distanceTo(bossManager.boss.mesh.position) < 6) {
                     scene.remove(b); bullets.splice(j, 1);
                     if (bossManager.handleBossHit(b.userData.damage)) {
@@ -922,7 +940,10 @@
 
         // Powerups update
         for (let i = powerUps.length - 1; i >= 0; i--) {
-            const p = powerUps[i]; p.update(dt);
+            const p = powerUps[i]; 
+            if (!p || !p.mesh) continue;
+            
+            p.update(dt);
             if (player.position.distanceTo(p.mesh.position) < 4) {
                 if (p.type === 'shield') { player.shield = 1; uiManager.addPowerUp('shield', 9999); }
                 else if (p.type === 'speed') { player.speedBoost = BossConfig.POWERUPS.DURATION; uiManager.addPowerUp('speed', BossConfig.POWERUPS.DURATION * 1000); }
