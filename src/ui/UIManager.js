@@ -139,7 +139,9 @@ class UIManager {
     }
 
     if (data.bossProgress !== undefined && data.bossThreshold !== undefined) {
-      this.updateBossProgress(data.bossProgress, data.bossThreshold, data.isBossActive === false);
+      const showProgress = data.isBossActive === false;
+      const baseline = data.bossProgressBaseline !== undefined ? data.bossProgressBaseline : 0;
+      this.updateBossProgress(data.bossProgress, data.bossThreshold, showProgress, baseline);
     }
   }
 
@@ -192,11 +194,11 @@ class UIManager {
     this.showNotification('ВНИМАНИЕ: БОСС!', 'danger', 3000);
   }
 
-  updateBossProgress(currentScore, bossThreshold, visible = true) {
+  updateBossProgress(currentScore, bossThreshold, visible = true, baseline = 0) {
     if (this.components.bossProgress) {
       if (visible) {
         this.components.bossProgress.show();
-        this.components.bossProgress.update(currentScore, bossThreshold);
+        this.components.bossProgress.update(currentScore, bossThreshold, baseline);
       } else {
         this.components.bossProgress.hide();
       }
@@ -214,7 +216,7 @@ class UIManager {
   }
 
   resetBossProgress() {
-    this.updateBossProgress(0, 1, false);
+    this.updateBossProgress(0, 1, false, 0);
   }
 
   setCheckpointBarVisible(visible) {

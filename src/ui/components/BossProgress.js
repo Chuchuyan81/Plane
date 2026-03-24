@@ -7,10 +7,17 @@ class BossProgress {
     this.text = document.getElementById('bossProgressText');
   }
 
-  update(currentScore, nextBossThreshold) {
+  /**
+   * @param {number} currentScore — текущий счёт
+   * @param {number} nextBossThreshold — абсолютный счёт появления босса
+   * @param {number} baseline — счёт после предыдущего босса (начало интервала)
+   */
+  update(currentScore, nextBossThreshold, baseline = 0) {
     if (!this.container || !this.fill || !this.text) return;
 
-    const percent = Math.min((currentScore / nextBossThreshold) * 100, 100);
+    const span = Math.max(1, nextBossThreshold - baseline);
+    const gained = Math.max(0, currentScore - baseline);
+    const percent = Math.min((gained / span) * 100, 100);
     this.fill.style.width = `${percent}%`;
     this.text.textContent = `ДО БОССА: ${this.formatNumber(currentScore)} / ${this.formatNumber(nextBossThreshold)}`;
     

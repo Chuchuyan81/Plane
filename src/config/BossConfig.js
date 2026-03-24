@@ -10,11 +10,15 @@ export const BossConfig = {
     /** Множитель увеличения порога после каждого босса */
     thresholdGrowthMultiplier: 1.5,
 
-    /** Расчёт порога для следующего босса */
-    calculateNextThreshold: (bossesDefeated) => {
+    /**
+     * Очки, которые нужно набрать после предыдущего босса (или с нуля до первого).
+     * bossesKilled — сколько боссов уже побеждено ПОСЛЕ инкремента (для следующего интервала).
+     * Пример: 0 → 5000 до босса 1; после 1-го босса k=1 → +7500 до босса 2.
+     */
+    calculateNextThreshold: (bossesKilled) => {
         return Math.floor(
-            BossConfig.baseScoreThreshold * 
-            Math.pow(BossConfig.thresholdGrowthMultiplier, bossesDefeated)
+            BossConfig.baseScoreThreshold *
+            Math.pow(BossConfig.thresholdGrowthMultiplier, bossesKilled)
         );
     },
 

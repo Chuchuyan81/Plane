@@ -15,7 +15,9 @@ export class BossManager {
         this.boss = null;
         this.isBossActive = false;
 
-        this.lastBossScore = 0; // Счёт после победы над предыдущим боссом
+        /** Базовый счёт после последней победы над боссом (начало интервала до следующего) */
+        this.lastBossScore = 0;
+        /** Абсолютный счёт, при достижении которого появляется следующий босс */
         this.nextBossThreshold = this._firstThresholdForDifficulty(difficulty);
         this.bonusSpawnTimer = 0;
 
@@ -45,6 +47,14 @@ export class BossManager {
     shouldSpawnBoss(currentScore) {
         if (this.isBossActive) return false;
         return currentScore >= this.nextBossThreshold;
+    }
+
+    /** Доля прогресса в текущем интервале между боссами (0..1) */
+    _bossProgressRatio(currentScore) {
+        const span = this.nextBossThreshold - this.lastBossScore;
+        if (span <= 0) return 1;
+        const t = (currentScore - this.lastBossScore) / span;
+        return Math.max(0, Math.min(1, t));
     }
 
     /**
@@ -123,10 +133,11 @@ export class BossManager {
             console.log('[BossManager] Boss preload threshold reached (80% progress)');
         }
         
-        // Обновляем UI через UIManager
+        // Обновляем UI через UIManager (полоса — прогресс в интервале lastBossScore → nextBossThreshold)
         this.uiManager.updateHUD({
             bossProgress: currentScore,
             bossThreshold: target,
+            bossProgressBaseline: this.lastBossScore,
             isBossActive: this.isBossActive
         });
 
@@ -218,7 +229,13 @@ export class BossManager {
         );
         this.scoreManager.addBossKill();
 
-        this.checkpointManager.forceSave({ 
+        // Интервал до следующего босса считается от счёта ПОСЛЕ бонуса; порог — абсолютный
+        this.lastBossScore = this.scoreManager.score;
+        const interval = BossConfig.calculateNextThreshold(this.scoreManager.bossesKilled);
+        this.nextBossThreshold = this.lastBossScore + interval;
+        this._preloadLogged = false;
+
+        this.checkpointManager.forceSave({
             type: 'POST_BOSS',
             score: this.scoreManager.score,
             combo: this.scoreManager.combo,
@@ -244,20 +261,12 @@ export class BossManager {
             detail: { distance: 150 } 
         }));
 
-        this.lastBossScore = this.scoreManager.score;
-        this.nextBossThreshold = this._calculateNextBossThreshold();
-
         if (this.boss) {
             this.boss.cleanup();
             this.boss = null;
         }
 
-        console.log(`[BossManager] Boss defeated! Next threshold: ${this.nextBossThreshold} (Current: ${this.lastBossScore})`);
-    }
-
-    _calculateNextBossThreshold() {
-        const bossesKilled = this.scoreManager.bossesKilled;
-        return BossConfig.calculateNextThreshold(bossesKilled);
+        console.log(`[BossManager] Boss defeated! Next boss at score: ${this.nextBossThreshold} (+${interval} from ${this.lastBossScore})`);
     }
 
     /**
@@ -268,6 +277,14 @@ export class BossManager {
         this.lastBossScore = checkpoint.lastBossScore !== undefined ? checkpoint.lastBossScore : 0;
         this.nextBossThreshold = checkpoint.nextBossThreshold !== undefined ? checkpoint.nextBossThreshold : this._firstThresholdForDifficulty(this.difficulty);
         this._preloadLogged = false;
+
+        // Старые сохранения: порог был «накопительным» (5000, 7500…), счёт уже выше — выровнять интервал
+        if (this.scoreManager.score >= this.nextBossThreshold) {
+            const interval = BossConfig.calculateNextThreshold(this.scoreManager.bossesKilled);
+            this.lastBossScore = this.scoreManager.score;
+            this.nextBossThreshold = this.lastBossScore + interval;
+        }
+
         console.log(`[BossManager] Loaded from checkpoint: lastBossScore=${this.lastBossScore}, nextThreshold=${this.nextBossThreshold}`);
     }
 
@@ -281,8 +298,11 @@ export class BossManager {
     setDifficulty(level) {
         this.difficulty = level;
         if (!this.isBossActive) {
-            const thr = this._firstThresholdForDifficulty(level);
-            this.nextBossThreshold = Math.max(this.scoreManager.score, thr);
+            const interval = BossConfig.calculateNextThreshold(this.scoreManager.bossesKilled);
+            this.nextBossThreshold = this.lastBossScore + interval;
+            if (this.scoreManager.score >= this.nextBossThreshold) {
+                this.nextBossThreshold = this.scoreManager.score + interval;
+            }
         }
     }
 
