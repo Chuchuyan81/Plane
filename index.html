@@ -923,16 +923,18 @@
             // Critical fix: if player died above, bossManager.boss might be null now
             if (!bossManager.boss) return;
 
-            // Boss damage by player bullets
+            // Boss damage by player bullets (boss may become null mid-loop after defeat)
             for (let j = bullets.length - 1; j >= 0; j--) {
                 const b = bullets[j];
                 if (!b) continue;
+                if (!bossManager.boss || !bossManager.boss.mesh) break;
 
                 if (b.position.distanceTo(bossManager.boss.mesh.position) < 6) {
                     scene.remove(b); bullets.splice(j, 1);
                     if (bossManager.handleBossHit(b.userData.damage)) {
                         currentState = GameState.PLAYING;
                         uiManager.onStateChange(GameState.PLAYING, GameState);
+                        break;
                     }
                 }
             }
