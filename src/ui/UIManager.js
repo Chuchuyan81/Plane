@@ -5,7 +5,6 @@ import PauseMenu from './screens/PauseMenu.js';
 import GameOverScreen from './screens/GameOverScreen.js';
 import SettingsScreen from './screens/SettingsScreen.js';
 import HealthBar from './components/HealthBar.js';
-import BossBar from './components/BossBar.js';
 import ComboDisplay from './components/ComboDisplay.js';
 import PowerUpIcons from './components/PowerUpIcons.js';
 import Notification from './components/Notification.js';
@@ -37,7 +36,6 @@ class UIManager {
 
   createComponents() {
     this.components.healthBar = new HealthBar();
-    this.components.bossBar = new BossBar();
     this.components.combo = new ComboDisplay();
     this.components.powerUps = new PowerUpIcons();
     this.components.notifications = new Notification();
@@ -130,14 +128,12 @@ class UIManager {
     if (data.bossHp !== undefined) {
       if (data.bossHp > 0) {
         const currentHp = data.bossCurrentHp !== undefined ? data.bossCurrentHp : (data.bossHp * (data.bossMaxHp || 100));
-        this.showBossBar(currentHp, data.bossMaxHp || 100);
         
         // Use new BossHUD if data is available
         if (data.bossName && data.bossPhase) {
           this.updateBossHUD(data.bossName, currentHp, data.bossMaxHp || 100, data.bossPhase, true);
         }
       } else {
-        this.hideBossBar();
         this.updateBossHUD('', 0, 1, 'PHASE_1', false);
       }
     }
@@ -163,18 +159,6 @@ class UIManager {
 
   updateHealth(current, max) {
     if (this.components.healthBar) this.components.healthBar.update(current, max);
-  }
-
-  showBossBar(hp, max) {
-    if (this.components.bossBar) this.components.bossBar.show(hp, max);
-  }
-
-  updateBossBar(hp, max = null) {
-    if (this.components.bossBar) this.components.bossBar.update(hp, max);
-  }
-
-  hideBossBar() {
-    if (this.components.bossBar) this.components.bossBar.hide();
   }
 
   addPowerUp(type, duration) {

@@ -114,54 +114,6 @@
   font-size: var(--font-size-sm);
 }
 
-/* Boss Bar */
-#bossBarContainer {
-  display: none;
-  position: absolute;
-  top: 100px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 60%;
-  max-width: 600px;
-  background: var(--color-bg-primary);
-  padding: 8px 16px;
-  border-radius: 8px;
-  border: 2px solid var(--color-boss);
-}
-
-#bossBarContainer.flash {
-  animation: flash-red 0.15s ease;
-}
-
-.boss-label {
-  font-weight: bold;
-  color: var(--color-boss);
-  margin-right: 8px;
-}
-
-.boss-bar-track {
-  height: 16px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  overflow: hidden;
-  margin: 4px 0;
-  flex: 1;
-}
-
-#bossBarFill {
-  height: 100%;
-  width: 100%;
-  background: var(--color-boss);
-  transition: width var(--transition-fast);
-}
-
-.boss-text {
-  font-family: 'Courier New', monospace;
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-  margin-left: 8px;
-}
-
 /* Power Up Icons */
 #powerUpsContainer {
   display: flex;

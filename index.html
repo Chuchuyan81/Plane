@@ -34,15 +34,6 @@
       </div>
     </div>
     
-    <!-- Босс бар (Старый, можно оставить для совместимости или убрать) -->
-    <div id="bossBarContainer" style="display: none;">
-      <span class="boss-label">БОСС:</span>
-      <div class="boss-bar-track">
-        <div id="bossBarFill"></div>
-      </div>
-      <span id="bossBarText" class="boss-text">5000/5000</span>
-    </div>
-
     <!-- Прогресс до босса (Новый по ТЗ) -->
     <div id="bossProgressContainer" class="boss-progress-hud">
       <div class="boss-progress-track">
@@ -610,6 +601,17 @@
           uiManager.updateBossHUD(null, 0, 1, 'PHASE_1', false);
           uiManager.showNotification("БОСС ПОВЕРЖЕН!", "success", 3000);
         });
+
+        window.addEventListener('boss-spawn-aid', (e) => {
+          const distance = e.detail.distance || 200;
+          const pos = new THREE.Vector3(
+            (Math.random() - 0.5) * 40,
+            25 + Math.random() * 15,
+            player.position.z - distance
+          );
+          spawnPowerUp(pos, true); // true for guaranteed spawn
+        });
+
         window.addEventListener('camera-shake', (e) => {
           shakeIntensity = e.detail.intensity || 1.0;
           setTimeout(() => { if (shakeIntensity > 0) shakeIntensity = 0; }, e.detail.duration || 500);
@@ -804,9 +806,6 @@
 
         if (isBossFight) {
             bossManager.updateBoss(dt, player, gameTime, powerUps.length);
-            if (bossManager.boss) {
-                uiManager.updateBossBar(bossManager.boss.hp);
-            }
         } else {
             if (checkpointManager.check(displayDistance)) {
                 checkpointManager.save({ 
@@ -905,6 +904,10 @@
             if (player.position.distanceTo(bossManager.boss.mesh.position) < 4) {
                 takePlayerDamage(BossConfig.PLAYER.COLLISION_DAMAGE.boss, 'DEFEATED BY BOSS');
             }
+            
+            // Critical fix: if player died above, bossManager.boss might be null now
+            if (!bossManager.boss) return;
+
             // Boss damage by player bullets
             for (let j = bullets.length - 1; j >= 0; j--) {
                 const b = bullets[j];
@@ -947,10 +950,9 @@
     }
 
     function checkOrientation() {
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        const isLandscape = window.innerWidth > window.innerHeight;
+        // Portrait mode warning disabled as requested
         const overlay = document.getElementById('orientationWarning');
-        if (overlay) overlay.style.display = (isMobile && !isLandscape) ? 'flex' : 'none';
+        if (overlay) overlay.style.display = 'none';
     }
 
     window.addEventListener('resize', () => {

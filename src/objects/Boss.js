@@ -142,7 +142,7 @@ export class Boss {
     }
 
     shakeCamera() {
-        window.dispatchEvent(new CustomEvent('camera-shake', { detail: { intensity: 0.5, duration: 200 } }));
+        window.dispatchEvent(new CustomEvent('camera-shake', { detail: { intensity: 0.3, duration: 150 } }));
     }
 
     audioHitEffect() {
@@ -234,12 +234,12 @@ export class Boss {
     }
 
     executeAttacks(dt, playerPos) {
-        let fireRate = 0.7;
-        let patternRate = 5.0;
+        let fireRate = 0.8;
+        let patternRate = 6.0;
 
         switch (this.currentPhase) {
             case 'PHASE_1':
-                fireRate = this.difficulty === 'hard' ? 0.35 : 0.5;
+                fireRate = this.difficulty === 'hard' ? 0.5 : 0.7;
                 if (this.fireTimer > fireRate) {
                     this._shoot(playerPos, 'normal');
                     this.fireTimer = 0;
@@ -250,23 +250,23 @@ export class Boss {
                 }
                 break;
             case 'PHASE_2':
-                fireRate = this.difficulty === 'hard' ? 0.25 : 0.4;
+                fireRate = this.difficulty === 'hard' ? 0.4 : 0.6;
                 if (this.fireTimer > fireRate) {
-                    this._shoot(playerPos, 'pattern');
+                    this._shoot(playerPos, 'pattern'); // Fan fire
                     this.fireTimer = 0;
                 }
-                if (this.moveTimer > 3.0) {
+                if (this.moveTimer > 4.0) {
                     this._shoot(playerPos, 'mine');
                     this.moveTimer = 0;
                 }
                 break;
             case 'PHASE_3':
-                fireRate = this.difficulty === 'hard' ? 0.15 : 0.3;
+                fireRate = this.difficulty === 'hard' ? 0.25 : 0.4;
                 if (this.fireTimer > fireRate) {
                     this._shoot(playerPos, 'normal');
                     this.fireTimer = 0;
                 }
-                if (this.moveTimer > 1.5) {
+                if (this.moveTimer > 2.0) {
                     const rand = Math.random();
                     if (rand < 0.3) this._shoot(playerPos, 'laser');
                     else if (rand < 0.6) this._shoot(playerPos, 'drone');

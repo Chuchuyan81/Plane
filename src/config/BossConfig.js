@@ -26,14 +26,14 @@ export const BossConfig = {
     MAX_ACTIVE_BOSS_BONUSES: 2,
 
     HP_MULTIPLIER: {
-        easy: 1.0,
-        medium: 1.5,
-        hard: 2.2
+        easy: 0.8,
+        medium: 1.2,
+        hard: 1.8
     },
 
     /** Базовое HP босса до множителя сложности */
-    BOSS_BASE_HP: 50,
-    BOSS_HP_PER_KILL: 50,
+    BOSS_BASE_HP: 40,
+    BOSS_HP_PER_KILL: 40,
 
     RESPAWN_ASSIST: {
         easy: 0.25,
