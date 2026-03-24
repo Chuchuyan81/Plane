@@ -804,10 +804,10 @@
         if (goKills) goKills.innerText = state.kills;
         if (goBosses) goBosses.innerText = state.bossesKilled;
         if (newRecordMsg) newRecordMsg.classList.toggle('hidden', !isNewRecord);
-        if (bestScoreDisplay) bestScoreDisplay.innerText = state.bestScore;
+        if (bestScoreDisplay)         bestScoreDisplay.innerText = state.bestScore;
         
         uiManager.setCheckpointBarVisible(false);
-        uiManager.updateBossProgress(0, 1, false);
+        uiManager.resetBossProgress(); // Задача 3: Сброс прогресс-бара
         uiManager.showScreen('gameOver');
     }
 
@@ -840,6 +840,7 @@
         player.rateBoost = 0;
         
         scoreManager.loadFromCheckpoint(lastCP, currentDifficulty);
+        bossManager.loadFromCheckpoint(lastCP);
         physics.resetDistance(lastCP.distance);
         
         if (currentDifficulty === 'hard') {
@@ -897,7 +898,7 @@
         checkpointManager.reset();
         markerPool.reset();
         uiManager.setCheckpointBarVisible(false);
-        uiManager.updateBossProgress(0, 1, false);
+        uiManager.resetBossProgress(); // Задача 3: Сброс прогресс-бара
         uiManager.showScreen('mainMenu');
     }
 
@@ -1025,7 +1026,9 @@
     }
 
     function spawnEnemy() {
+        // Задача 1: Обычные враги не спавнятся во время боя с боссом
         if (bossManager.isBossActive) return;
+        
         if (bossManager.shouldSpawnBoss(scoreManager.score)) {
             spawnBoss();
             return;
@@ -1050,6 +1053,14 @@
     }
 
     function spawnPowerUp(pos, guaranteed = false, type = null) {
+        // Задача 1: Ограничение количества бонусов во время боя
+        if (currentState === GameState.BOSS_FIGHT && powerUps.length >= BossConfig.MAX_ACTIVE_BOSS_BONUSES) {
+            if (!guaranteed) return;
+            // Если гарантированный спавн, удаляем самый старый бонус чтобы освободить место
+            const oldest = powerUps.shift();
+            if (oldest && oldest.mesh) scene.remove(oldest.mesh);
+        }
+        
         // Задача 1: Блокируем случайный спавн во время BOSS_FIGHT
         if (!guaranteed && currentState === GameState.BOSS_FIGHT) return;
         
@@ -1156,10 +1167,17 @@
         const realDistance = Math.floor(Math.max(0, -player.position.z));
 
         if (isBossFight) {
-            bossManager.updateBoss(dt, player, gameTime);
+            // Задача 1: Передаем количество активных бонусов для ограничения
+            bossManager.updateBoss(dt, player, gameTime, powerUps.length);
         } else {
             if (checkpointManager.check(displayDistance)) {
-                checkpointManager.save({ score: scoreManager.score, combo: scoreManager.combo, player: player });
+                checkpointManager.save({ 
+                    score: scoreManager.score, 
+                    combo: scoreManager.combo, 
+                    player: player,
+                    lastBossScore: bossManager.lastBossScore,
+                    nextBossThreshold: bossManager.nextBossThreshold
+                });
                 onCheckpointReached();
             }
             

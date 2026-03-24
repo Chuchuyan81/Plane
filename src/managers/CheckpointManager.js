@@ -85,6 +85,8 @@ export class CheckpointManager {
             score: gameState.score,
             comboMultiplier: gameState.combo,
             activePowerUps: this._serializePowerUps(gameState.player),
+            lastBossScore: gameState.lastBossScore,
+            nextBossThreshold: gameState.nextBossThreshold,
             type: type,
             timestamp: Date.now()
         };

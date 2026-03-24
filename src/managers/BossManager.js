@@ -16,7 +16,8 @@ export class BossManager {
         this.isBossActive = false;
 
         this.lastBossScore = 0; // Счёт после победы над предыдущим боссом
-        this.nextBossThreshold = this._thresholdForDifficulty(difficulty);
+        this.nextBossThreshold = this._firstThresholdForDifficulty(difficulty);
+        this.bonusSpawnTimer = 0;
 
         this.playerNoDamage = true;
         this._preloadLogged = false;
@@ -28,6 +29,10 @@ export class BossManager {
      */
     attachRespawnManager(rm) {
         this._respawnManager = rm;
+    }
+
+    _firstThresholdForDifficulty(d) {
+        return BossConfig.FIRST_BOSS_THRESHOLD[d] ?? BossConfig.FIRST_BOSS_THRESHOLD.medium;
     }
 
     _thresholdForDifficulty(d) {
@@ -59,7 +64,9 @@ export class BossManager {
                 score: this.scoreManager.score,
                 combo: this.scoreManager.combo,
                 distance: Math.floor(Math.max(0, -player.position.z)),
-                activePowerUps: this.checkpointManager.serializeActivePowerUps(player)
+                activePowerUps: this.checkpointManager.serializeActivePowerUps(player),
+                lastBossScore: this.lastBossScore,
+                nextBossThreshold: this.nextBossThreshold
             });
             this._preloadLogged = false;
         }
@@ -73,6 +80,8 @@ export class BossManager {
 
         this.uiManager.setBossWarning(true);
         this._showBossHUD();
+
+        this.bonusSpawnTimer = 0; // Сброс таймера бонусов при начале боя
 
         this.uiManager.notify('WARNING: BOSS APPROACHING', 'warning', 3000);
         console.log(`[BossManager] Boss spawned at score: ${this.scoreManager.score}, threshold: ${this.nextBossThreshold}`);
@@ -121,11 +130,25 @@ export class BossManager {
         };
     }
 
-    updateBoss(dt, player, gameTime) {
+    updateBoss(dt, player, gameTime, activeBonusCount = 0) {
         if (!this.boss || this.boss.isDead) return;
 
         this.boss.update(dt, player.position, gameTime);
         
+        // Задача 1: Непрерывный спавн бонусов во время боя
+        this.bonusSpawnTimer += dt * 1000;
+        if (this.bonusSpawnTimer >= BossConfig.BOSS_BONUS_SPAWN_INTERVAL) {
+            if (activeBonusCount < BossConfig.MAX_ACTIVE_BOSS_BONUSES) {
+                window.dispatchEvent(new CustomEvent('boss-spawn-aid', {
+                    detail: { distance: 200 } // Спавним на 200 единиц впереди (минимум 150)
+                }));
+                this.bonusSpawnTimer = 0;
+            } else {
+                // Если бонусов слишком много, откладываем на 1 сек, чтобы проверить позже
+                this.bonusSpawnTimer -= 1000;
+            }
+        }
+
         this.uiManager.updateHUD({
             bossHp: this.boss.hp / this.boss.maxHp,
             bossCurrentHp: this.boss.hp,
@@ -144,7 +167,9 @@ export class BossManager {
                     bossHp: this.boss.hp,
                     activePowerUps: this.checkpointManager.serializeActivePowerUps(player),
                     playerShield: player.shield,
-                    distance: Math.floor(Math.max(0, -player.position.z))
+                    distance: Math.floor(Math.max(0, -player.position.z)),
+                    lastBossScore: this.lastBossScore,
+                    nextBossThreshold: this.nextBossThreshold
                 });
                 
                 // Скриптовый спавн бонуса на 50% HP (режим Easy)
@@ -182,7 +207,13 @@ export class BossManager {
         );
         this.scoreManager.addBossKill();
 
-        this.checkpointManager.forceSave({ type: 'POST_BOSS' });
+        this.checkpointManager.forceSave({ 
+            type: 'POST_BOSS',
+            score: this.scoreManager.score,
+            combo: this.scoreManager.combo,
+            lastBossScore: this.lastBossScore,
+            nextBossThreshold: this.nextBossThreshold
+        });
         this.checkpointManager.unlockCheckpointCreation();
 
         this.physics.resumeDistanceProgress();
@@ -203,15 +234,33 @@ export class BossManager {
         }));
 
         this.lastBossScore = this.scoreManager.score;
-        const difficultyMult = { easy: 1.0, medium: 1.2, hard: 1.5 }[this.difficulty] || 1.0;
-        this.nextBossThreshold = this.lastBossScore + BossConfig.MIN_DISTANCE_BETWEEN_BOSSES * difficultyMult;
+        this.nextBossThreshold = this._calculateNextBossThreshold();
 
         if (this.boss) {
             this.boss.cleanup();
             this.boss = null;
         }
 
-        console.log(`[BossManager] Boss defeated! Next threshold: ${this.nextBossThreshold}`);
+        console.log(`[BossManager] Boss defeated! Next threshold: ${this.nextBossThreshold} (Current: ${this.lastBossScore})`);
+    }
+
+    _calculateNextBossThreshold() {
+        const bossesDefeated = this.scoreManager.bossesKilled;
+        const baseInterval = BossConfig.MIN_SCORE_INTERVAL;
+        // Порог для (bossesDefeated + 1)-го босса
+        const multiplier = Math.pow(BossConfig.INTERVAL_MULTIPLIER, bossesDefeated - 1);
+        return this.lastBossScore + Math.floor(baseInterval * multiplier);
+    }
+
+    /**
+     * Загрузка из чек-поинта
+     */
+    loadFromCheckpoint(checkpoint) {
+        if (!checkpoint) return;
+        this.lastBossScore = checkpoint.lastBossScore !== undefined ? checkpoint.lastBossScore : 0;
+        this.nextBossThreshold = checkpoint.nextBossThreshold !== undefined ? checkpoint.nextBossThreshold : this._firstThresholdForDifficulty(this.difficulty);
+        this._preloadLogged = false;
+        console.log(`[BossManager] Loaded from checkpoint: lastBossScore=${this.lastBossScore}, nextThreshold=${this.nextBossThreshold}`);
     }
 
     onPlayerDeath() {
@@ -224,7 +273,7 @@ export class BossManager {
     setDifficulty(level) {
         this.difficulty = level;
         if (!this.isBossActive) {
-            const thr = this._thresholdForDifficulty(level);
+            const thr = this._firstThresholdForDifficulty(level);
             this.nextBossThreshold = Math.max(this.scoreManager.score, thr);
         }
     }
@@ -243,7 +292,8 @@ export class BossManager {
             this.physics.resumeDistanceProgress();
         }
         this.lastBossScore = 0;
-        this.nextBossThreshold = this._thresholdForDifficulty(this.difficulty);
+        this.nextBossThreshold = this._firstThresholdForDifficulty(this.difficulty);
+        this.bonusSpawnTimer = 0;
         this._preloadLogged = false;
     }
 }

@@ -50,8 +50,12 @@ export class Bonus {
         this.mesh.position.z += 10 * dt;
 
         // Пульсация свечения (ТЗ Задача 2: частота ~2 Гц)
-        const time = Date.now() * 0.004; // Множитель для ~2 Гц
-        this.mesh.material.emissiveIntensity = 0.5 + Math.sin(time) * 0.5;
+        // Частота 2 Гц означает 2 полных цикла в секунду.
+        // Math.sin(time * speed) — один цикл при speed * time = 2 * PI.
+        // Для 2 циклов в сек: speed * 1 = 2 * (2 * PI) = 4 * PI.
+        // 4 * PI ≈ 12.56.
+        const pulseTime = Date.now() * 0.001; // время в секундах
+        this.mesh.material.emissiveIntensity = 0.5 + Math.sin(pulseTime * 12.56) * 0.5;
 
         // Вращение (ТЗ Задача 2: скорость ~2 радиан/сек)
         this.mesh.rotation.y += 2.0 * dt;

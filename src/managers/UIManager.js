@@ -177,6 +177,13 @@ export class UIManager {
             fill.classList.add('boss-progress-warn');
         }
     }
+
+    /**
+     * Сброс прогресс-бара босса
+     */
+    resetBossProgress() {
+        this.updateBossProgress(0, 1, false);
+    }
 }
 
 export const uiManager = new UIManager();

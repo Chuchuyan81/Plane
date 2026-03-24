@@ -10,6 +10,26 @@ export const BossConfig = {
         hard: 9000
     },
 
+    /** Базовые пороги для первого босса на разных сложностях */
+    FIRST_BOSS_THRESHOLD: {
+        easy: 1000,
+        medium: 1500,
+        hard: 2000
+    },
+
+    /** Минимальный интервал очков между боссами */
+    MIN_SCORE_INTERVAL: 2000,
+
+    /** Множитель интервала для каждого следующего босса (прогрессия сложности) */
+    INTERVAL_MULTIPLIER: 1.3,
+
+    /** Порог предупреждения (за сколько очков до босса показывать) */
+    WARNING_THRESHOLD: 500,
+
+    /** Настройки спавна бонусов во время боя с боссом */
+    BOSS_BONUS_SPAWN_INTERVAL: 8000, // 8 секунд
+    MAX_ACTIVE_BOSS_BONUSES: 2,
+
     HP_MULTIPLIER: {
         easy: 1.0,
         medium: 1.5,

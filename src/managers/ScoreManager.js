@@ -24,6 +24,7 @@ export class ScoreManager {
         this.kills = 0;
         this.bossesKilled = 0;
         this.bestScore = storage.getBestScore();
+        window.dispatchEvent(new CustomEvent('score-updated', { detail: { score: 0, added: 0 } }));
     }
 
     /**
@@ -48,6 +49,7 @@ export class ScoreManager {
         } else {
             this.combo = 1.0;
         }
+        window.dispatchEvent(new CustomEvent('score-updated', { detail: { score: this.score, added: 0 } }));
     }
 
     /**
@@ -72,6 +74,7 @@ export class ScoreManager {
         const raw = (BASE + combo * COMBO_MULTIPLIER) * noDamageMult;
         const bonus = Math.floor(raw);
         this.score += bonus;
+        window.dispatchEvent(new CustomEvent('score-updated', { detail: { score: this.score, added: bonus } }));
         console.log(`[ScoreManager] Boss defeat bonus: ${bonus} (combo=${combo}, noDamage=${noDamage})`);
         return bonus;
     }
@@ -81,7 +84,9 @@ export class ScoreManager {
      * @param {number} points - количество очков (без учёта комбо)
      */
     addScore(points) {
-        this.score += Math.floor(points * this.combo);
+        const added = Math.floor(points * this.combo);
+        this.score += added;
+        window.dispatchEvent(new CustomEvent('score-updated', { detail: { score: this.score, added } }));
         return this.score;
     }
 
