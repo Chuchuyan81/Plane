@@ -1,442 +1,125 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SKY ACE 3D: Arcade Shooter</title>
-    <style>
-        body { 
-            margin: 0; 
-            overflow: hidden; 
-            font-family: 'Arial', sans-serif; 
-            background-color: #87CEEB; 
-            touch-action: none;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-        /* Стили для HUD (слой интерфейса) */
-        #ui-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 10;
-            box-sizing: border-box;
-        }
-        #orientation-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #2c3e50;
-            color: white;
-            z-index: 100;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            padding: 20px;
-        }
-        .phone-icon {
-            font-size: 60px;
-            margin-bottom: 20px;
-            animation: rotate 2s infinite ease-in-out;
-        }
-        @keyframes rotate {
-            0% { transform: rotate(0deg); }
-            50% { transform: rotate(90deg); }
-            100% { transform: rotate(0deg); }
-        }
-        button {
-            margin-top: 20px;
-            padding: 15px 30px;
-            font-size: 20px;
-            font-weight: bold;
-            cursor: pointer;
-            background: #ff4757;
-            color: white;
-            border: none;
-            border-radius: 30px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            min-width: 200px;
-        }
-        button:active { transform: scale(0.95); }
-        
-        #joystick-base {
-            position: absolute;
-            width: 100px;
-            height: 100px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.4);
-            border-radius: 50%;
-            display: none;
-            z-index: 5;
-            pointer-events: none;
-        }
-        #joystick-stick {
-            position: absolute;
-            width: 50px;
-            height: 50px;
-            background: rgba(255, 255, 255, 0.5);
-            border-radius: 50%;
-            top: 25px;
-            left: 25px;
-        }
-        /* Базовые стили для экранов */
-        .menu-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            z-index: 10;
-            pointer-events: auto;
-        }
-
-        /* Классы видимости */
-        .hidden {
-            display: none !important;
-        }
-        .active {
-            display: flex !important;
-        }
-
-        /* Кнопки (Удобно для пальца) */
-        .game-btn {
-            padding: 15px 30px;
-            margin: 10px;
-            font-size: 18px;
-            font-weight: bold;
-            min-width: 200px;
-            min-height: 50px; /* Минимум 44px для тач-интерфейсов */
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        }
-        .game-btn:active { transform: scale(0.95); }
-
-        /* HUD в игре */
-        #game-hud {
-            background: transparent;
-            justify-content: flex-start;
-            pointer-events: none;
-            flex-direction: column;
-        }
-        .hud-top {
-            padding: 10px 20px;
-            font-size: 18px;
-            font-weight: bold;
-            text-shadow: 1px 1px 2px black;
-            pointer-events: auto;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-            box-sizing: border-box;
-            background: rgba(0,0,0,0.3);
-        }
-        .hud-row {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-            margin-bottom: 5px;
-        }
-        #combo-container {
-            font-size: 24px;
-            color: #fffa65;
-            transition: transform 0.1s;
-        }
-        .combo-active { transform: scale(1.2); }
-        
-        #boss-hp-container {
-            width: 80%;
-            height: 10px;
-            background: rgba(0,0,0,0.5);
-            border: 1px solid #fff;
-            margin: 10px 0;
-            display: none;
-            position: relative;
-        }
-        #boss-warning {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 40px;
-            color: #ff4d4d;
-            font-weight: bold;
-            text-shadow: 2px 2px 4px black;
-            display: none;
-            animation: blink 0.5s infinite;
-            z-index: 100;
-        }
-        @keyframes blink {
-            0% { opacity: 0; }
-            50% { opacity: 1; }
-            100% { opacity: 0; }
-        }
-        #boss-hp-bar {
-            width: 100%;
-            height: 100%;
-            background: #ff4d4d;
-            transition: width 0.2s;
-        }
-        .pulse {
-            animation: pulse-red 1s infinite;
-        }
-        @keyframes pulse-red {
-            0% { background-color: #ff4d4d; }
-            50% { background-color: #ff0000; box-shadow: 0 0 10px #ff0000; }
-            100% { background-color: #ff4d4d; }
-        }
-        #boss-hp-text {
-            position: absolute;
-            right: 0;
-            top: -15px;
-            font-size: 10px;
-            color: white;
-        }
-        #boss-name {
-            position: absolute;
-            top: -15px;
-            left: 0;
-            font-size: 12px;
-            color: white;
-        }
-
-        #boss-progress-hud {
-            width: 85%;
-            max-width: 400px;
-            margin: 8px auto 0;
-            padding: 6px 10px;
-            box-sizing: border-box;
-            background: rgba(0,0,0,0.45);
-            border-radius: 8px;
-            border: 1px solid rgba(255,255,255,0.35);
-        }
-        #boss-progress-hud .progress-label {
-            font-size: 11px;
-            letter-spacing: 0.08em;
-            color: #f1c40f;
-            margin-bottom: 4px;
-            text-align: center;
-        }
-        #boss-progress-hud .progress-bar {
-            height: 8px;
-            background: rgba(0,0,0,0.5);
-            border-radius: 4px;
-            overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        #boss-progress-fill {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #f1c40f, #f39c12);
-            transition: width 0.15s ease, background 0.2s;
-        }
-        #boss-progress-fill.boss-progress-warn {
-            background: linear-gradient(90deg, #f39c12, #e67e22);
-        }
-        #boss-progress-fill.boss-progress-danger {
-            background: linear-gradient(90deg, #e74c3c, #c0392b);
-        }
-        #boss-progress-hud .progress-text {
-            font-size: 10px;
-            color: #ecf0f1;
-            text-align: center;
-            margin-top: 4px;
-        }
-
-        /* Здоровье игрока */
-        #player-hp-container {
-            width: 150px;
-            height: 12px;
-            background: rgba(0,0,0,0.5);
-            border: 1px solid rgba(255,255,255,0.5);
-            border-radius: 6px;
-            margin-top: 10px;
-            overflow: hidden;
-            position: relative;
-        }
-        #player-hp-bar {
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, #2ecc71, #27ae60);
-            transition: width 0.3s ease, background 0.3s;
-        }
-        #player-hp-text {
-            position: absolute;
-            width: 100%;
-            text-align: center;
-            top: 0;
-            left: 0;
-            font-size: 9px;
-            line-height: 12px;
-            color: white;
-            font-weight: bold;
-            text-shadow: 1px 1px 1px black;
-        }
-        .hp-low {
-            background: linear-gradient(90deg, #e74c3c, #c0392b) !important;
-            animation: pulse-red 1s infinite;
-        }
-
-        #powerups-hud {
-            position: absolute;
-            bottom: 120px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-            pointer-events: none;
-        }
-        .powerup-icon {
-            width: 40px;
-            height: 40px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 50%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            color: white;
-            border: 2px solid white;
-        }
-        .powerup-icon.shield { border-color: #3498db; }
-        .powerup-icon.speed { border-color: #2ecc71; }
-        .powerup-icon.multishot { border-color: #f1c40f; }
-        .powerup-icon.repair { border-color: #e74c3c; }
-        .powerup-icon.weapon_damage { border-color: #9b59b6; }
-        .powerup-icon.weapon_rate { border-color: #34495e; }
-
-        .icon-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            pointer-events: auto;
-            width: 44px;
-            height: 44px;
-            background: rgba(255, 255, 255, 0.3);
-            border: none;
-            color: white;
-            font-size: 20px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 20;
-        }
-        .icon-btn:active { transform: scale(0.9); }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SKY ACE 3D</title>
+  <link rel="stylesheet" href="src/ui/styles/main.css">
+  <link rel="stylesheet" href="src/ui/styles/components.css">
+  <link rel="stylesheet" href="src/ui/styles/animations.css">
+  <link rel="stylesheet" href="src/ui/styles/responsive.css">
 </head>
 <body>
+  <!-- Three.js Canvas -->
+  <canvas id="gameCanvas"></canvas>
+  
+  <!-- HUD (скрыт в меню) -->
+  <div id="hud" style="display: none;">
+    <!-- Верхняя панель -->
+    <div class="hud-top-panel">
+      <div class="score-row">
+        <span class="score-text">СЧЁТ: <span id="scoreValue">0</span></span>
+        <span class="distance-text">ДИСТАНЦИЯ: <span id="distanceValue">0 м</span></span>
+      </div>
+      <div class="combo-row">
+        <span id="comboContainer" class="combo-display">
+          <span id="comboText">COMBO x1.0</span>
+          <span id="comboArrows"></span>
+        </span>
+        <div id="powerUpsContainer"></div>
+      </div>
+      <div id="healthBarContainer" class="health-bar">
+        <span class="health-label">HP:</span>
+        <div class="health-bar-track">
+          <div id="healthBarFill" class="health-bar-fill normal"></div>
+        </div>
+        <span id="healthBarText" class="health-text">100/100</span>
+      </div>
+    </div>
+    
+    <!-- Босс бар -->
+    <div id="bossBarContainer">
+      <span class="boss-label">БОСС:</span>
+      <div class="boss-bar-track">
+        <div id="bossBarFill"></div>
+      </div>
+      <span id="bossBarText" class="boss-text">5000/5000</span>
+    </div>
+    
+    <!-- Уведомления -->
+    <div id="notificationsContainer"></div>
+  </div>
+  
+  <!-- Экраны меню -->
+  <div id="mainMenu" class="screen">
+    <h1>SKY ACE 3D</h1>
+    <div class="menu-stats">
+      <p>РЕКОРД: <span id="bestScoreValue">0</span></p>
+    </div>
+    <div class="menu-buttons">
+      <button id="btnStart" class="game-btn">ИГРАТЬ</button>
+      <button id="btnSettings" class="game-btn">НАСТРОЙКИ</button>
+    </div>
+  </div>
 
-<div id="orientation-overlay">
+  <div id="pauseMenu" class="screen" style="display: none;">
+    <h2>ПАУЗА</h2>
+    <div class="menu-buttons">
+      <button id="btnResume" class="game-btn">ПРОДОЛЖИТЬ</button>
+      <button id="btnSettingsPause" class="game-btn">НАСТРОЙКИ</button>
+      <button id="btnQuit" class="game-btn">В МЕНЮ</button>
+    </div>
+  </div>
+
+  <div id="gameOverScreen" class="screen" style="display: none;">
+    <h2>ИГРА ОКОНЧЕНА</h2>
+    <div id="gameOverStats" class="menu-stats">
+      <p>СЧЁТ: <span id="finalScore">0</span></p>
+      <p>ДИСТАНЦИЯ: <span id="finalDistance">0 м</span></p>
+    </div>
+    <div class="menu-buttons">
+      <button id="btnRestart" class="game-btn">ИГРАТЬ СНОВА</button>
+      <button id="btnMenuGO" class="game-btn">В МЕНЮ</button>
+    </div>
+  </div>
+
+  <div id="settingsScreen" class="screen" style="display: none;">
+    <h2>НАСТРОЙКИ</h2>
+    <div class="settings-group">
+      <label>СЛОЖНОСТЬ:</label>
+      <select id="settingDifficulty">
+        <option value="easy">ЛЕГКО</option>
+        <option value="medium" selected>СРЕДНЕ</option>
+        <option value="hard">ТЯЖЕЛО</option>
+      </select>
+    </div>
+    <div class="menu-buttons">
+      <button id="btnSettingsBack" class="game-btn">НАЗАД</button>
+    </div>
+  </div>
+  
+  <!-- Предупреждение ориентации -->
+  <div id="orientationWarning">
     <div class="phone-icon">📱</div>
-    <h2>Пожалуйста, поверните устройство</h2>
-    <p>Игра работает лучше всего в портретном (вертикальном) режиме.</p>
-</div>
+    <h2>↻ Поверните устройство</h2>
+    <p>Игра работает только в ландшафтном режиме</p>
+  </div>
 
-<!-- Контейнер интерфейса -->
-<div id="ui-layer">
-
-    <!-- 1. Главное меню (Состояние: Menu) -->
-    <div id="main-menu" class="menu-screen active">
-        <h1>SKY ACE 3D</h1>
-        <p>Рекорд: <span id="menu-best-score">0</span></p>
-        <button id="btn-start" class="game-btn">В ПОЛЁТ</button>
-        <button id="btn-settings-menu" class="game-btn">НАСТРОЙКИ</button>
-    </div>
-
-    <!-- 2. Игровой HUD (Состояние: Playing) -->
-    <div id="game-hud" class="menu-screen hidden">
-        <div id="boss-warning">БОСС!</div>
-        <div class="hud-top">
-            <div class="hud-row">
-                <span>СЧЁТ: <span id="hud-score">0</span></span>
-                <span>ДИСТАНЦИЯ: <span id="hud-distance">0</span> м</span>
-            </div>
-            <div id="combo-container">COMBO x<span id="hud-combo">1</span></div>
-            <div id="player-hp-container">
-                <div id="player-hp-bar"></div>
-                <div id="player-hp-text"><span id="player-hp-current">100</span> / <span id="player-hp-max">100</span></div>
-            </div>
-            <div id="boss-progress-hud" class="hidden">
-                <div class="progress-label">NEXT BOSS</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="boss-progress-fill"></div>
-                </div>
-                <div class="progress-text">
-                    <span id="boss-progress-current">0</span> / <span id="boss-progress-target">3000</span>
-                </div>
-            </div>
-            <div id="boss-hp-container">
-                <div id="boss-name">БОСС: <span id="boss-name-text">BOSS</span></div>
-                <div id="boss-hp-bar"></div>
-                <div id="boss-hp-text"><span id="boss-hp-current">100</span> / <span id="boss-hp-max">100</span></div>
-            </div>
-        </div>
-        <div id="powerups-hud">
-            <!-- Сюда будут динамически добавляться иконки -->
-        </div>
-        
-        <!-- Контейнер для полосы прогресса чек-поинта -->
-        <div id="checkpoint-bar-mount"></div>
-
-        <button id="btn-pause-hud" class="icon-btn">II</button>
-    </div>
-
-    <!-- 3. Меню паузы (Состояние: Paused) -->
-    <div id="pause-menu" class="menu-screen hidden">
-        <h2>ПАУЗА</h2>
-        <button id="btn-resume" class="game-btn">ПРОДОЛЖИТЬ</button>
-        <button id="btn-settings-pause" class="game-btn">НАСТРОЙКИ</button>
-        <button id="btn-quit" class="game-btn">В МЕНЮ</button>
-    </div>
-
-    <!-- 4. Экран завершения (Состояние: Game Over) -->
-    <div id="game-over" class="menu-screen hidden">
-        <h2>ИГРА ОКОНЧЕНА</h2>
-        <p>Ваш счёт: <span id="go-score">0</span></p>
-        <p>Макс. комбо: <span id="go-max-combo">0</span></p>
-        <p>Сбито врагов: <span id="go-kills">0</span></p>
-        <p>Сбито боссов: <span id="go-bosses">0</span></p>
-        <p id="new-record-msg" class="hidden">НОВЫЙ РЕКОРД!</p>
-        <button id="btn-restart" class="game-btn">ИГРАТЬ СНОВА</button>
-        <button id="btn-menu-go" class="game-btn">В МЕНЮ</button>
-    </div>
-
-</div>
-
-<div id="joystick-base">
+  <div id="joystick-base">
     <div id="joystick-stick"></div>
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-<script type="module">
-    const THREE = window.THREE;
+  </div>
+  
+  <!-- Three.js Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  
+  <!-- Main Game Script -->
+  <script type="module">
     import { GameState, BossState } from './src/core/GameState.js';
     import { physics } from './src/core/Physics.js';
     import { inputHandler } from './src/core/InputHandler.js';
     import { checkpointManager } from './src/managers/CheckpointManager.js';
     import { scoreManager } from './src/managers/ScoreManager.js';
-    import { uiManager } from './src/managers/UIManager.js';
+    import UIManager from './src/ui/UIManager.js';
     import { GAME_CONSTANTS, STORAGE_KEYS } from './src/utils/constants.js';
     import { BossConfig } from './src/config/BossConfig.js';
     import { storage } from './src/utils/storage.js';
@@ -445,10 +128,14 @@
     import { RespawnManager } from './src/managers/RespawnManager.js';
     import { Bonus } from './src/objects/Bonus.js';
 
+    // Initialize UI Manager
+    const uiManager = new UIManager();
+    uiManager.init();
+
     // --- 0. СОСТОЯНИЯ ИГРЫ ---
     let currentState = GameState.MENU;
     let stateBeforePause = GameState.PLAYING;
-    let currentDifficulty = storage.getDifficulty();
+    let currentDifficulty = uiManager.settings.difficulty || storage.getDifficulty();
     
     const bossManager = new BossManager(currentDifficulty, scoreManager, checkpointManager, uiManager, physics);
     const respawnManager = new RespawnManager(checkpointManager, bossManager, currentDifficulty, scoreManager);
@@ -522,15 +209,14 @@
 
     // --- 3. НАСТРОЙКА СЦЕНЫ ---
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x87CEEB, 100, 500); // Возвращаем туман, но делаем его дальше
+    scene.fog = new THREE.Fog(0x87CEEB, 100, 500);
     scene.background = new THREE.Color(0x87CEEB);
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
-    document.body.appendChild(renderer.domElement);
 
     // --- 4. СВЕТ ---
     const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
@@ -621,9 +307,6 @@
             this.fireTimer = 0;
             this.sinOffset = Math.random() * Math.PI * 2;
             this.isDead = false;
-            this.state = 'Active';
-            this.attackPattern = 0;
-            this.moveTimer = 0;
         }
         update(dt) {
             if (this.isDead) return;
@@ -668,10 +351,12 @@
             shakeScreen();
             scoreManager.addKill();
             const points = scoreManager.getEnemyKillPoints(this.type, currentDifficulty);
-            const newScore = scoreManager.addScore(points);
-            const combo = scoreManager.updateCombo(true);
-            uiManager.updateHUD({ score: newScore, combo: combo, comboActive: true });
+            scoreManager.addScore(points);
+            scoreManager.updateCombo(true);
             
+            uiManager.updateScore(scoreManager.score);
+            uiManager.updateCombo(scoreManager.combo);
+
             if (Math.random() < 0.15) {
                 spawnPowerUp(this.mesh.position.clone());
             }
@@ -702,9 +387,9 @@
     let gameTime = 0;
 
     function initGameUI() {
-        uiManager.updateHUD({ score: scoreManager.bestScore });
+        uiManager.updateBestScore(scoreManager.bestScore);
         setupEventListeners();
-        uiManager.showScreen('mainMenu');
+        uiManager.onStateChange(GameState.MENU, GameState);
     }
 
     function startGame() {
@@ -720,13 +405,11 @@
         bossManager.cleanup();
         gameTime = 0;
         
-        uiManager.updateHUD({ score: 0, distance: 0, combo: 1, bossHp: 0 });
-        uiManager.setBossWarning(false);
-        uiManager.setCheckpointBarVisible(true);
-        uiManager.updateCheckpointProgress(checkpointManager.getProgress(0));
-        
-        const bp = bossManager.getBossProgressForUI(0);
-        uiManager.updateBossProgress(bp.currentRelative, bp.targetRelative, true);
+        uiManager.updateScore(0);
+        uiManager.updateDistance(0);
+        uiManager.updateCombo(1);
+        uiManager.updateHealth(player.hp, player.maxHp);
+        uiManager.hideBossBar();
         
         player.position.set(0, 40, 0);
         player.rotation.set(0, 0, 0);
@@ -743,7 +426,7 @@
         Mats.player.emissiveIntensity = 0;
         
         clearLevel();
-        uiManager.showScreen('gameHud');
+        uiManager.onStateChange(GameState.PLAYING, GameState);
     }
 
     function clearLevel() {
@@ -762,19 +445,17 @@
         stateBeforePause = currentState;
         currentState = GameState.PAUSED;
         inputHandler.hideJoystick();
-        uiManager.showScreen('pauseMenu');
+        uiManager.onStateChange(GameState.PAUSED, GameState);
     }
 
     function resumeGame() {
         if (currentState !== GameState.PAUSED) return;
         currentState = stateBeforePause;
-        uiManager.showScreen('gameHud');
+        uiManager.onStateChange(currentState, GameState);
     }
 
     function gameOver(reason) {
         if (currentState === GameState.GAMEOVER || currentState === GameState.RESPAWNING) return;
-        
-        console.log(`[Game] Game Over triggered by: ${reason}`);
         
         const { mode, checkpoint } = respawnManager.handleDeath();
         
@@ -784,31 +465,17 @@
         }
 
         currentState = GameState.GAMEOVER;
-        enemies.forEach(e => { if (e.type === 'boss') e.state = BossState.LEAVING; });
         if (bossManager.boss) bossManager.boss.state = BossState.LEAVING;
         
         inputHandler.hideJoystick();
         const isNewRecord = scoreManager.saveStats();
         const state = scoreManager.getState();
         
-        // Получаем элементы UI
-        const goScore = document.getElementById('go-score');
-        const goMaxCombo = document.getElementById('go-max-combo');
-        const goKills = document.getElementById('go-kills');
-        const goBosses = document.getElementById('go-bosses');
-        const newRecordMsg = document.getElementById('new-record-msg');
-        const bestScoreDisplay = document.getElementById('menu-best-score');
-
-        if (goScore) goScore.innerText = state.score;
-        if (goMaxCombo) goMaxCombo.innerText = state.maxCombo;
-        if (goKills) goKills.innerText = state.kills;
-        if (goBosses) goBosses.innerText = state.bossesKilled;
-        if (newRecordMsg) newRecordMsg.classList.toggle('hidden', !isNewRecord);
-        if (bestScoreDisplay)         bestScoreDisplay.innerText = state.bestScore;
+        document.getElementById('finalScore').innerText = state.score;
+        document.getElementById('finalDistance').innerText = `${Math.floor(physics.distance)} м`;
+        uiManager.updateBestScore(state.bestScore);
         
-        uiManager.setCheckpointBarVisible(false);
-        uiManager.resetBossProgress(); // Задача 3: Сброс прогресс-бара
-        uiManager.showScreen('gameOver');
+        uiManager.onGameOver(scoreManager.score, physics.distance);
     }
 
     function startRespawn(checkpoint, mode) {
@@ -821,7 +488,7 @@
         bossManager.onPlayerDeath();
         
         if (mode === 'BOSS_RETRY') {
-            uiManager.notify("RETRYING BOSS...", "info", 2000);
+            uiManager.showNotification("ПОВТОР БОЯ С БОССОМ...", "info", 2000);
             bossManager.cleanup({ resumePhysics: false });
         }
     }
@@ -834,48 +501,29 @@
         player.visible = true;
         player.maxHp = BossConfig.PLAYER.MAX_HP;
         player.hp = player.maxHp;
-        player.bulletDamage = BossConfig.PLAYER.BULLET_DAMAGE;
-        player.fireInterval = BossConfig.PLAYER.FIRE_INTERVAL;
-        player.damageBoost = 0;
-        player.rateBoost = 0;
         
         scoreManager.loadFromCheckpoint(lastCP, currentDifficulty);
         bossManager.loadFromCheckpoint(lastCP);
         physics.resetDistance(lastCP.distance);
         
-        if (currentDifficulty === 'hard') {
-            player.shield = 0; player.speedBoost = 0; player.multiShot = 0;
-        } else {
-            (lastCP.activePowerUps || []).forEach(pu => { player[pu.type] = pu.value; });
-            if (lastCP.playerShield !== undefined) player.shield = lastCP.playerShield;
-        }
-        
-        const state = scoreManager.getState();
-        uiManager.updateHUD({ score: state.score, distance: lastCP.distance, combo: state.combo });
-        uiManager.updateCheckpointProgress(checkpointManager.getProgress(lastCP.distance));
+        uiManager.updateScore(scoreManager.score);
+        uiManager.updateDistance(lastCP.distance);
+        uiManager.updateCombo(scoreManager.combo);
+        uiManager.updateHealth(player.hp, player.maxHp);
         
         if (lastCP.type === 'PRE_BOSS' || lastCP.type === 'MID_BOSS') {
             currentState = GameState.BOSS_FIGHT;
-            
             const savedBossHp = lastCP.type === 'MID_BOSS' ? lastCP.bossHp : null;
             bossManager.spawnBoss(scene, player, savedBossHp, true);
-            
-            if (bossManager.boss) {
-                bossManager.boss.setAttackHold(3);
-            }
-            
-            respawnManager.applyBossRetryModifiers(bossManager.boss);
-            
+            uiManager.onStateChange(GameState.BOSS_FIGHT, GameState);
             respawnManager.grantInvulnerability(playerObj, 2000);
         } else {
             currentState = GameState.PLAYING;
-            const bp = bossManager.getBossProgressForUI(state.score);
-            uiManager.updateBossProgress(bp.currentRelative, bp.targetRelative, true);
+            uiManager.onStateChange(GameState.PLAYING, GameState);
         }
     }
 
     function onCheckpointReached() {
-        // 1. Свечение контура самолета (Золотистая аура)
         if (Mats.player) {
             Mats.player.emissive.set(0xffd700);
             Mats.player.emissiveIntensity = 2.0;
@@ -886,10 +534,9 @@
                 }
             }, 300);
         }
-        // 2. Вибрация
         if (navigator.vibrate) navigator.vibrate(50);
-        // 3. Звук (1200 Гц, высокий тон)
         AudioController.playCheckpoint();
+        uiManager.showNotification("✓ ЧЕК-ПОИНТ", "success");
     }
 
     function quitToMenu() {
@@ -897,91 +544,24 @@
         stateBeforePause = GameState.MENU;
         checkpointManager.reset();
         markerPool.reset();
-        uiManager.setCheckpointBarVisible(false);
-        uiManager.resetBossProgress(); // Задача 3: Сброс прогресс-бара
-        uiManager.showScreen('mainMenu');
+        uiManager.onStateChange(GameState.MENU, GameState);
     }
 
     function setupEventListeners() {
-        document.getElementById('btn-start').addEventListener('click', startGame);
-        document.getElementById('btn-resume').addEventListener('click', resumeGame);
-        document.getElementById('btn-quit').addEventListener('click', quitToMenu);
-        document.getElementById('btn-menu-go').addEventListener('click', quitToMenu);
-        document.getElementById('btn-restart').addEventListener('click', startGame);
-        document.getElementById('btn-pause-hud').addEventListener('click', pauseGame);
-        document.getElementById('btn-settings-menu').addEventListener('click', () => {
-            uiManager.settingsScreen.show(() => uiManager.showScreen('mainMenu'));
-        });
-        document.getElementById('btn-settings-pause').addEventListener('click', () => {
-            uiManager.settingsScreen.show(() => uiManager.showScreen('pauseMenu'));
-        });
-        uiManager.settingsScreen.onDifficultyChange = (level) => { 
-            currentDifficulty = level; 
-            bossManager.setDifficulty(level);
-            respawnManager.difficulty = level;
-            checkpointManager.init(level);
-            uiManager.updateBossProgress(scoreManager.score, bossManager.nextBossThreshold, currentState === GameState.PLAYING);
-        };
-        uiManager.settingsScreen.onSoundChange = (enabled) => { 
-            AudioController.enabled = enabled;
-            if (enabled) AudioController.init();
-        };
-        uiManager.settingsScreen.onDetailChange = (detail) => { 
-            currentMarkerDetail = detail; 
-            markerPool.reset();
-            lastMarkerDistance = -1;
-        };
+        document.getElementById('btnStart').addEventListener('click', startGame);
+        document.getElementById('btnRestart').addEventListener('click', startGame);
+        document.getElementById('btnResume').addEventListener('click', resumeGame);
+        document.getElementById('btnQuit').addEventListener('click', quitToMenu);
+        document.getElementById('btnMenuGO').addEventListener('click', quitToMenu);
         
-        // Обработка событий босса
-        window.addEventListener('boss-shoot', (e) => {
-            const { position, target, type } = e.detail;
-            const sm = typeof e.detail.speedMultiplier === 'number' ? e.detail.speedMultiplier : 1;
-            
-            if (type === 'normal') {
-                const b = new THREE.Mesh(Geoms.enemyBullet, Mats.enemyBullet);
-                b.position.copy(position);
-                const dir = new THREE.Vector3().subVectors(target, position).normalize();
-                b.userData = { vx: dir.x * 60 * sm, vy: dir.y * 60 * sm, vz: dir.z * 60 * sm };
-                scene.add(b);
-                enemyBullets.push(b);
-            } else if (type === 'pattern') {
-                for (let i = -2; i <= 2; i++) {
-                    const b = new THREE.Mesh(Geoms.enemyBullet, Mats.enemyBullet);
-                    b.position.copy(position);
-                    b.userData = { vx: i * 15 * sm, vy: -5 * sm, vz: 80 * sm };
-                    scene.add(b);
-                    enemyBullets.push(b);
-                }
-            }
-            AudioController.playEnemyShot();
-        });
+        document.getElementById('btnSettings').addEventListener('click', () => uiManager.showScreen('settings'));
+        document.getElementById('btnSettingsPause').addEventListener('click', () => uiManager.showScreen('settings'));
 
-        window.addEventListener('boss-warning-hide', () => {
-            uiManager.setBossWarning(false);
-        });
-
-        window.addEventListener('boss-spawn-aid', (e) => {
-            const spawnPos = player.position.clone();
-            const distance = (e.detail && e.detail.distance) || 150;
-            spawnPos.z -= distance; // Спавним впереди игрока (ТЗ Задача 1)
-            spawnPos.x = (Math.random() - 0.5) * 60;
-            spawnPos.y = 10 + Math.random() * 40;
-            
-            // Если передан тип, используем его, иначе случайный
-            const type = e.detail && e.detail.type;
-            spawnPowerUp(spawnPos, true, type);
-        });
-
-        window.addEventListener('boss-hit', () => {
-            AudioController.playBossHit();
-        });
-
-        window.addEventListener('boss-defeated', (e) => {
-            shakeScreen();
-            AudioController.playExplosion();
-            // Основной бонус за босса теперь спавнится через boss-spawn-aid в BossManager
-            const slowMoDuration = 500;
-            setTimeout(() => {}, slowMoDuration);
+        document.getElementById('settingDifficulty').addEventListener('change', (e) => {
+            currentDifficulty = e.target.value;
+            uiManager.saveSettings({ ...uiManager.settings, difficulty: currentDifficulty });
+            bossManager.setDifficulty(currentDifficulty);
+            checkpointManager.init(currentDifficulty);
         });
 
         window.addEventListener('keydown', (e) => {
@@ -989,6 +569,18 @@
                 if (currentState === GameState.PLAYING || currentState === GameState.BOSS_FIGHT) pauseGame();
                 else if (currentState === GameState.PAUSED) resumeGame();
             }
+        });
+
+        // Boss events for UI
+        window.addEventListener('boss-spawn', (e) => {
+          uiManager.showBossBar(e.detail.hp, e.detail.max);
+        });
+        window.addEventListener('boss-damage', (e) => {
+          uiManager.updateBossBar(e.detail.hp);
+        });
+        window.addEventListener('boss-defeated', () => {
+          uiManager.hideBossBar();
+          uiManager.showNotification("БОСС ПОВЕРЖЕН!", "success", 3000);
         });
     }
 
@@ -1001,15 +593,15 @@
         if (player.shield > 0) {
             player.shield--;
             AudioController.playHit();
-            if (player.shield <= 0) document.getElementById('pu-shield')?.remove();
+            if (player.shield <= 0) uiManager.removePowerUp('shield');
             return;
         }
 
         player.hp -= amount;
         shakeScreen();
         AudioController.playHit();
+        uiManager.updateHealth(player.hp, player.maxHp);
         
-        // Вспышка урона
         Mats.player.emissive.set(0xff0000);
         Mats.player.emissiveIntensity = 2.0;
         setTimeout(() => {
@@ -1020,13 +612,11 @@
         }, 150);
 
         if (player.hp <= 0) {
-            bossManager.playerNoDamage = false;
             gameOver(reason);
         }
     }
 
     function spawnEnemy() {
-        // Задача 1: Обычные враги не спавнятся во время боя с боссом
         if (bossManager.isBossActive) return;
         
         if (bossManager.shouldSpawnBoss(scoreManager.score)) {
@@ -1046,24 +636,13 @@
 
     function spawnBoss() {
         if (bossManager.isBossActive) return;
-        
         currentState = GameState.BOSS_FIGHT;
-        uiManager.updateBossProgress(scoreManager.score, bossManager.nextBossThreshold, false);
         bossManager.spawnBoss(scene, player, null, false);
+        uiManager.onStateChange(GameState.BOSS_FIGHT, GameState);
     }
 
     function spawnPowerUp(pos, guaranteed = false, type = null) {
-        // Задача 1: Ограничение количества бонусов во время боя
-        if (currentState === GameState.BOSS_FIGHT && powerUps.length >= BossConfig.MAX_ACTIVE_BOSS_BONUSES) {
-            if (!guaranteed) return;
-            // Если гарантированный спавн, удаляем самый старый бонус чтобы освободить место
-            const oldest = powerUps.shift();
-            if (oldest && oldest.mesh) scene.remove(oldest.mesh);
-        }
-        
-        // Задача 1: Блокируем случайный спавн во время BOSS_FIGHT
         if (!guaranteed && currentState === GameState.BOSS_FIGHT) return;
-        
         if (guaranteed || Math.random() < 0.15) { 
             powerUps.push(new PowerUp(pos, type)); 
         }
@@ -1074,7 +653,6 @@
         const currentDamage = player.bulletDamage + (player.damageBoost > 0 ? BossConfig.POWERUPS.DAMAGE_BOOST : 0);
         
         const createBullet = (offsetX = 0) => {
-            if (!Geoms.bullet || !Mats.bullet) return;
             const b = new THREE.Mesh(Geoms.bullet, Mats.bullet);
             b.position.copy(player.position);
             b.position.x += offsetX; b.position.z -= 2;
@@ -1086,18 +664,6 @@
         AudioController.playShot();
     }
 
-    function updatePowerUpHUD(type, duration) {
-        const id = 'pu-' + type;
-        let el = document.getElementById(id);
-        if (!el) {
-            el = document.createElement('div');
-            el.id = id; el.className = 'powerup-icon ' + type;
-            uiManager.hudElements.powerupsHud.appendChild(el);
-        }
-        const label = type.replace('weapon_', '').toUpperCase();
-        el.innerHTML = `<span>${label}</span><span id="${id}-time">${Math.ceil(duration)}s</span>`;
-    }
-
     function update(dt) {
         if (currentState === GameState.RESPAWNING) {
             respawnTimer += dt;
@@ -1106,7 +672,6 @@
         }
         if (currentState !== GameState.PLAYING && currentState !== GameState.BOSS_FIGHT) return;
         
-        const frameState = currentState; // Запоминаем состояние на начало кадра
         gameTime += dt;
         const isBossFight = currentState === GameState.BOSS_FIGHT;
         const diffMods = physics.getDifficultyModifiers(currentDifficulty);
@@ -1124,12 +689,11 @@
         
         player.position.x += move.x * pSpeed * dt;
         player.position.y += move.y * pSpeed * dt;
-        player.position.z -= 60 * dt; // ВСЕГДА движемся вперед, даже в бою с боссом
+        player.position.z -= 60 * dt;
 
         player.position.x = Math.max(-GAME_CONSTANTS.LIMIT_X, Math.min(GAME_CONSTANTS.LIMIT_X, player.position.x));
         player.position.y = Math.max(GAME_CONSTANTS.FLOOR, Math.min(GAME_CONSTANTS.CEILING, player.position.y));
         
-        // Плавный наклон (независимо от FPS)
         const targetRotZ = -move.x * 0.6;
         const targetRotX = move.y * 0.4;
         player.rotation.z += (targetRotZ - player.rotation.z) * (1 - Math.exp(-10 * dt));
@@ -1138,25 +702,24 @@
         playerObj.prop.rotation.z += 1.5;
         playerObj.shieldMesh.visible = player.shield > 0;
 
-        // Таймеры бонусов
+        // PowerUp timers
         if (player.speedBoost > 0) {
-            player.speedBoost -= dt; updatePowerUpHUD('speed', player.speedBoost);
-            if (player.speedBoost <= 0) document.getElementById('pu-speed')?.remove();
+            player.speedBoost -= dt;
+            if (player.speedBoost <= 0) uiManager.removePowerUp('speed');
         }
         if (player.multiShot > 0) {
-            player.multiShot -= dt; updatePowerUpHUD('multishot', player.multiShot);
-            if (player.multiShot <= 0) document.getElementById('pu-multishot')?.remove();
+            player.multiShot -= dt;
+            if (player.multiShot <= 0) uiManager.removePowerUp('multishot');
         }
         if (player.damageBoost > 0) {
-            player.damageBoost -= dt; updatePowerUpHUD('weapon_damage', player.damageBoost);
-            if (player.damageBoost <= 0) document.getElementById('pu-weapon_damage')?.remove();
+            player.damageBoost -= dt;
+            if (player.damageBoost <= 0) uiManager.removePowerUp('damage');
         }
         if (player.rateBoost > 0) {
-            player.rateBoost -= dt; updatePowerUpHUD('weapon_rate', player.rateBoost);
-            if (player.rateBoost <= 0) document.getElementById('pu-weapon_rate')?.remove();
+            player.rateBoost -= dt;
+            // No specific icon for rate boost in spec but can be added
         }
 
-        // Плавное движение камеры (независимо от FPS)
         const lerpFactor = 1 - Math.exp(-5 * dt);
         camera.position.z = player.position.z + 20;
         camera.position.x += (player.position.x - camera.position.x) * lerpFactor + shakeX;
@@ -1164,11 +727,11 @@
         camera.lookAt(player.position.x, player.position.y, player.position.z - 15);
 
         let displayDistance = physics.updateDistance(player.position);
-        const realDistance = Math.floor(Math.max(0, -player.position.z));
+        uiManager.updateDistance(displayDistance);
 
         if (isBossFight) {
-            // Задача 1: Передаем количество активных бонусов для ограничения
             bossManager.updateBoss(dt, player, gameTime, powerUps.length);
+            uiManager.updateBossBar(bossManager.boss.hp);
         } else {
             if (checkpointManager.check(displayDistance)) {
                 checkpointManager.save({ 
@@ -1180,28 +743,16 @@
                 });
                 onCheckpointReached();
             }
-            
-            const bp = bossManager.getBossProgressForUI(scoreManager.score);
-            uiManager.updateBossProgress(bp.currentRelative, bp.targetRelative, true);
         }
         
-        uiManager.updateHUD({ 
-            distance: displayDistance, 
-            playerHp: player.hp, 
-            playerMaxHp: player.maxHp 
-        });
-        uiManager.updateCheckpointProgress(checkpointManager.getProgress(displayDistance));
-
-        // ОБНОВЛЕННАЯ ЛОГИКА: Спаун маркеров ЗАРАНЕЕ (на 800м вперед)
         markerPool.update(dt);
         markerPool.cull(camera.position.z, 1000);
         
         const cpInterval = GAME_CONSTANTS.CHECKPOINT_INTERVALS[currentDifficulty];
         let markerStep = 100;
         if (currentMarkerDetail === 'low') markerStep = cpInterval;
-        else if (currentMarkerDetail === 'medium') markerStep = 500;
 
-        const lookAheadLimit = realDistance + 800;
+        const lookAheadLimit = Math.floor(Math.max(0, -player.position.z)) + 800;
         while (lastMarkerDistance + markerStep <= lookAheadLimit) {
             const nextSpawnDist = lastMarkerDistance + markerStep;
             if (nextSpawnDist < 0) { 
@@ -1218,102 +769,93 @@
         const currentInterval = player.fireInterval - (player.rateBoost > 0 ? BossConfig.POWERUPS.FIRE_RATE_BOOST : 0);
         if (fireTimer > Math.max(0.05, currentInterval)) { shoot(); fireTimer = 0; }
 
+        // Bullets update
         for (let i = bullets.length - 1; i >= 0; i--) {
             const b = bullets[i];
-            if (!b || !b.position) continue;
             b.position.z -= 200 * dt;
             if (b.position.z < player.position.z - 200) { scene.remove(b); bullets.splice(i, 1); }
         }
 
+        // Enemy bullets update
         for (let i = enemyBullets.length - 1; i >= 0; i--) {
             const eb = enemyBullets[i];
-            if (!eb || !eb.position) continue;
             eb.position.z += 80 * dt;
             if (eb.userData.vx) {
-                eb.position.x += eb.userData.vx * dt; eb.position.y += eb.userData.vy * dt; eb.position.z += (eb.userData.vz || 0) * dt;
+                eb.position.x += eb.userData.vx * dt; eb.position.y += eb.userData.vy * dt;
             }
-            if (player && player.position && eb.position.distanceTo(player.position) < 3) {
+            if (eb.position.distanceTo(player.position) < 3) {
                 takePlayerDamage(BossConfig.PLAYER.COLLISION_DAMAGE.bullet, 'Сбит вражеским огнем!');
-                if (player.hp <= 0) return; // ПРЕРЫВАЕМ UPDATE если умерли
-                
                 scene.remove(eb); enemyBullets.splice(i, 1);
-                scoreManager.updateCombo(false); uiManager.updateHUD({ combo: 1 });
+                scoreManager.updateCombo(false); uiManager.updateCombo(1);
                 continue;
             }
-            if (player && player.position && eb.position.z > player.position.z + 20) { scene.remove(eb); enemyBullets.splice(i, 1); }
+            if (eb.position.z > player.position.z + 20) { scene.remove(eb); enemyBullets.splice(i, 1); }
         }
 
+        // Enemies update
         spawnTimer += dt;
         const spawnInterval = (1.5 / dynamicDifficulty) / diffMods.spawn;
         if (!isBossFight && spawnTimer > Math.max(0.3, spawnInterval)) { spawnEnemy(); spawnTimer = 0; }
 
-        if (bossManager.boss && !bossManager.boss.isDead && bossManager.boss.mesh) {
-            for (let j = bullets.length - 1; j >= 0; j--) {
-                const b = bullets[j];
-                if (!b || !b.position) continue;
-                if (b.position.distanceTo(bossManager.boss.mesh.position) < 4) {
-                    const dmg = b.userData.damage || 1;
-                    scene.remove(b); bullets.splice(j, 1);
-                    if (bossManager.handleBossHit(dmg)) {
-                        currentState = GameState.PLAYING;
-                        uiManager.updateBossProgress(scoreManager.score, bossManager.nextBossThreshold, true);
-                        uiManager.updateHUD({ score: scoreManager.score });
-                    }
-                    break;
-                }
-            }
-        }
-
         for (let i = enemies.length - 1; i >= 0; i--) {
             const e = enemies[i]; 
-            if (!e || !e.mesh) continue;
             e.update(dt);
             for (let j = bullets.length - 1; j >= 0; j--) {
                 const b = bullets[j];
-                if (!b || !b.position) continue;
                 if (b.position.distanceTo(e.mesh.position) < 4) {
                     scene.remove(b); bullets.splice(j, 1);
                     if (e.takeDamage(1)) { 
                         enemies.splice(i, 1); 
+                        uiManager.updateScore(scoreManager.score);
+                        uiManager.updateCombo(scoreManager.combo);
                     }
                     break;
                 }
             }
-            if (e && !e.isDead && player && player.position && player.position.distanceTo(e.mesh.position) < 4) {
+            if (!e.isDead && player.position.distanceTo(e.mesh.position) < 4) {
                 takePlayerDamage(BossConfig.PLAYER.COLLISION_DAMAGE.enemy, 'Столкновение!');
-                if (player.hp <= 0) return;
-                
                 if (!playerObj.isInvulnerable) {
                     e.die(); 
                     enemies.splice(i, 1);
                 }
             }
-            if (e && !e.isDead && player && player.position && e.mesh.position.z > player.position.z + 20) {
+            if (!e.isDead && e.mesh.position.z > player.position.z + 20) {
                 scene.remove(e.mesh); enemies.splice(i, 1);
-                scoreManager.updateCombo(false); uiManager.updateHUD({ combo: 1 });
+                scoreManager.updateCombo(false); uiManager.updateCombo(1);
             }
         }
 
+        // Boss collision
         if (bossManager.boss && !bossManager.boss.isDead && bossManager.boss.mesh) {
-            const bm = bossManager.boss.mesh.position;
-            if (player.position.distanceTo(bm) < 4) {
+            if (player.position.distanceTo(bossManager.boss.mesh.position) < 4) {
                 takePlayerDamage(BossConfig.PLAYER.COLLISION_DAMAGE.boss, 'DEFEATED BY BOSS');
-                if (player.hp <= 0) return;
+            }
+            // Boss damage by player bullets
+            for (let j = bullets.length - 1; j >= 0; j--) {
+                const b = bullets[j];
+                if (b.position.distanceTo(bossManager.boss.mesh.position) < 6) {
+                    scene.remove(b); bullets.splice(j, 1);
+                    if (bossManager.handleBossHit(b.userData.damage)) {
+                        currentState = GameState.PLAYING;
+                        uiManager.onStateChange(GameState.PLAYING, GameState);
+                    }
+                }
             }
         }
 
+        // Powerups update
         for (let i = powerUps.length - 1; i >= 0; i--) {
             const p = powerUps[i]; p.update(dt);
             if (player.position.distanceTo(p.mesh.position) < 4) {
-                if (p.type === 'shield') { player.shield = 1; updatePowerUpHUD('shield', 999); }
-                else if (p.type === 'speed') player.speedBoost = BossConfig.POWERUPS.DURATION;
-                else if (p.type === 'multishot') player.multiShot = BossConfig.POWERUPS.DURATION;
+                if (p.type === 'shield') { player.shield = 1; uiManager.addPowerUp('shield', 9999); }
+                else if (p.type === 'speed') { player.speedBoost = BossConfig.POWERUPS.DURATION; uiManager.addPowerUp('speed', BossConfig.POWERUPS.DURATION * 1000); }
+                else if (p.type === 'multishot') { player.multiShot = BossConfig.POWERUPS.DURATION; uiManager.addPowerUp('multishot', BossConfig.POWERUPS.DURATION * 1000); }
                 else if (p.type === 'repair') {
                     player.hp = Math.min(player.maxHp, player.hp + BossConfig.POWERUPS.REPAIR_AMOUNT);
-                    uiManager.notify('REPAIRED +' + BossConfig.POWERUPS.REPAIR_AMOUNT + ' HP', 'success', 2000);
+                    uiManager.updateHealth(player.hp, player.maxHp);
+                    uiManager.showNotification('РЕМОНТ +' + BossConfig.POWERUPS.REPAIR_AMOUNT + ' HP', 'success', 2000);
                 }
-                else if (p.type === 'weapon_damage') player.damageBoost = BossConfig.POWERUPS.DURATION;
-                else if (p.type === 'weapon_rate') player.rateBoost = BossConfig.POWERUPS.DURATION;
+                else if (p.type === 'weapon_damage') { player.damageBoost = BossConfig.POWERUPS.DURATION; uiManager.addPowerUp('damage', BossConfig.POWERUPS.DURATION * 1000); }
                 
                 AudioController.playPowerUp(); scene.remove(p.mesh); powerUps.splice(i, 1);
             } else if (p.mesh.position.z > player.position.z + 20) {
@@ -1332,8 +874,8 @@
     function checkOrientation() {
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const isLandscape = window.innerWidth > window.innerHeight;
-        const overlay = document.getElementById('orientation-overlay');
-        if (overlay) overlay.style.display = (isMobile && isLandscape) ? 'flex' : 'none';
+        const overlay = document.getElementById('orientationWarning');
+        if (overlay) overlay.style.display = (isMobile && !isLandscape) ? 'flex' : 'none';
     }
 
     window.addEventListener('resize', () => {
@@ -1346,7 +888,7 @@
     function animate() {
         const now = performance.now();
         let dt = (now - lastTime) / 1000;
-        if (dt > 0.1) dt = 0.1; // Ограничиваем dt для предотвращения рывков при лагах
+        if (dt > 0.1) dt = 0.1;
         lastTime = now;
         
         update(dt);
@@ -1357,6 +899,6 @@
     checkOrientation();
     initGameUI();
     animate();
-</script>
+  </script>
 </body>
 </html>
