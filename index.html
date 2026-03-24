@@ -443,6 +443,7 @@
     import { GroundMarkerPool } from './src/objects/GroundMarkerPool.js';
     import { BossManager } from './src/managers/BossManager.js';
     import { RespawnManager } from './src/managers/RespawnManager.js';
+    import { Bonus } from './src/objects/Bonus.js';
 
     // --- 0. СОСТОЯНИЯ ИГРЫ ---
     let currentState = GameState.MENU;
@@ -679,17 +680,14 @@
     }
 
     class PowerUp {
-        constructor(pos) {
+        constructor(pos, type = null) {
             const types = ['shield', 'speed', 'multishot', 'repair', 'weapon_damage', 'weapon_rate'];
-            this.type = types[Math.floor(Math.random() * types.length)];
-            const geom = Geoms[this.type] || Geoms.powerUp;
-            this.mesh = new THREE.Mesh(geom, Mats[this.type]);
-            this.mesh.position.copy(pos);
-            scene.add(this.mesh);
+            this.type = type || types[Math.floor(Math.random() * types.length)];
+            this.bonus = new Bonus(scene, this.type, pos);
+            this.mesh = this.bonus.mesh;
         }
         update(dt) {
-            this.mesh.position.z += 10 * dt;
-            this.mesh.rotation.y += 2 * dt;
+            this.bonus.update(dt, gameTime);
         }
     }
 
@@ -726,7 +724,9 @@
         uiManager.setBossWarning(false);
         uiManager.setCheckpointBarVisible(true);
         uiManager.updateCheckpointProgress(checkpointManager.getProgress(0));
-        uiManager.updateBossProgress(0, bossManager.nextBossThreshold, true);
+        
+        const bp = bossManager.getBossProgressForUI(0);
+        uiManager.updateBossProgress(bp.currentRelative, bp.targetRelative, true);
         
         player.position.set(0, 40, 0);
         player.rotation.set(0, 0, 0);
@@ -868,7 +868,8 @@
             respawnManager.grantInvulnerability(playerObj, 2000);
         } else {
             currentState = GameState.PLAYING;
-            uiManager.updateBossProgress(state.score, bossManager.nextBossThreshold, true);
+            const bp = bossManager.getBossProgressForUI(state.score);
+            uiManager.updateBossProgress(bp.currentRelative, bp.targetRelative, true);
         }
     }
 
@@ -958,12 +959,16 @@
             uiManager.setBossWarning(false);
         });
 
-        window.addEventListener('boss-spawn-aid', () => {
+        window.addEventListener('boss-spawn-aid', (e) => {
             const spawnPos = player.position.clone();
-            spawnPos.z -= 100; // Спавним впереди игрока
+            const distance = (e.detail && e.detail.distance) || 150;
+            spawnPos.z -= distance; // Спавним впереди игрока (ТЗ Задача 1)
             spawnPos.x = (Math.random() - 0.5) * 60;
             spawnPos.y = 10 + Math.random() * 40;
-            spawnPowerUp(spawnPos, true);
+            
+            // Если передан тип, используем его, иначе случайный
+            const type = e.detail && e.detail.type;
+            spawnPowerUp(spawnPos, true, type);
         });
 
         window.addEventListener('boss-hit', () => {
@@ -973,8 +978,7 @@
         window.addEventListener('boss-defeated', (e) => {
             shakeScreen();
             AudioController.playExplosion();
-            const pos = e.detail && e.detail.dropPosition;
-            if (pos) spawnPowerUp(pos, true);
+            // Основной бонус за босса теперь спавнится через boss-spawn-aid в BossManager
             const slowMoDuration = 500;
             setTimeout(() => {}, slowMoDuration);
         });
@@ -1045,8 +1049,13 @@
         bossManager.spawnBoss(scene, player, null, false);
     }
 
-    function spawnPowerUp(pos, guaranteed = false) {
-        if (guaranteed || Math.random() < 0.15) { powerUps.push(new PowerUp(pos)); }
+    function spawnPowerUp(pos, guaranteed = false, type = null) {
+        // Задача 1: Блокируем случайный спавн во время BOSS_FIGHT
+        if (!guaranteed && currentState === GameState.BOSS_FIGHT) return;
+        
+        if (guaranteed || Math.random() < 0.15) { 
+            powerUps.push(new PowerUp(pos, type)); 
+        }
     }
 
     function shoot() {
@@ -1153,7 +1162,9 @@
                 checkpointManager.save({ score: scoreManager.score, combo: scoreManager.combo, player: player });
                 onCheckpointReached();
             }
-            uiManager.updateBossProgress(scoreManager.score, bossManager.nextBossThreshold, true);
+            
+            const bp = bossManager.getBossProgressForUI(scoreManager.score);
+            uiManager.updateBossProgress(bp.currentRelative, bp.targetRelative, true);
         }
         
         uiManager.updateHUD({ 

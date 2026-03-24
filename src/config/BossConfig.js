@@ -51,6 +51,9 @@ export const BossConfig = {
     /** Прелоад лог при заполнении прогресс-бара (доля от порога) */
     PRELOAD_PROGRESS: 0.8,
 
+    MIN_DISTANCE_BETWEEN_BOSSES: 2000, // Минимум очков между боссами
+    WARNING_THRESHOLD: 500, // За сколько очков до босса показывать предупреждение
+
     PLAYER: {
         MAX_HP: 100,
         BULLET_DAMAGE: 1,

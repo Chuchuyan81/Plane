@@ -15,12 +15,11 @@ export class BossManager {
         this.boss = null;
         this.isBossActive = false;
 
+        this.lastBossScore = 0; // Счёт после победы над предыдущим боссом
         this.nextBossThreshold = this._thresholdForDifficulty(difficulty);
 
         this.playerNoDamage = true;
         this._preloadLogged = false;
-        
-        this.powerUpSpawnTimer = 0;
     }
 
     /**
@@ -99,12 +98,27 @@ export class BossManager {
      */
     getBossProgressForUI(currentScore) {
         const target = this.nextBossThreshold;
-        const ratio = target > 0 ? Math.min(1, currentScore / target) : 0;
+        const base = this.lastBossScore;
+        const ratio = target > base ? Math.min(1, (currentScore - base) / (target - base)) : 0;
+        
+        // Предупреждение за 500 очков (ТЗ Задача 3)
+        if (!this.isBossActive && target - currentScore <= (BossConfig.WARNING_THRESHOLD || 500) && target - currentScore > 0) {
+            this.uiManager.setBossWarning(true);
+        } else if (!this.isBossActive) {
+            this.uiManager.setBossWarning(false);
+        }
+
         if (!this._preloadLogged && ratio >= BossConfig.PRELOAD_PROGRESS) {
             this._preloadLogged = true;
             console.log('[BossManager] Boss preload threshold reached (80% progress)');
         }
-        return { current: currentScore, target, ratio };
+        return { 
+            current: currentScore, 
+            target, 
+            ratio,
+            currentRelative: Math.max(0, currentScore - base),
+            targetRelative: Math.max(0, target - base)
+        };
     }
 
     updateBoss(dt, player, gameTime) {
@@ -112,13 +126,6 @@ export class BossManager {
 
         this.boss.update(dt, player.position, gameTime);
         
-        // Спавн бонусов во время битвы
-        this.powerUpSpawnTimer += dt;
-        if (this.powerUpSpawnTimer > 15) {
-            this.powerUpSpawnTimer = 0;
-            window.dispatchEvent(new CustomEvent('boss-spawn-aid'));
-        }
-
         this.uiManager.updateHUD({
             bossHp: this.boss.hp / this.boss.maxHp,
             bossCurrentHp: this.boss.hp,
@@ -139,7 +146,13 @@ export class BossManager {
                     playerShield: player.shield,
                     distance: Math.floor(Math.max(0, -player.position.z))
                 });
-                console.log('[BossManager] MID_BOSS checkpoint (Easy)');
+                
+                // Скриптовый спавн бонуса на 50% HP (режим Easy)
+                window.dispatchEvent(new CustomEvent('boss-spawn-aid', { 
+                    detail: { distance: 200 } 
+                }));
+                
+                console.log('[BossManager] MID_BOSS checkpoint (Easy) with scripted bonus');
             }
         }
     }
@@ -183,15 +196,22 @@ export class BossManager {
                 detail: { bonus: finalBonus, dropPosition }
             })
         );
+        
+        // Скриптовый спавн бонуса после победы (POST_BOSS)
+        window.dispatchEvent(new CustomEvent('boss-spawn-aid', { 
+            detail: { distance: 200 } 
+        }));
 
-        this.nextBossThreshold += this._thresholdForDifficulty(this.difficulty);
+        this.lastBossScore = this.scoreManager.score;
+        const difficultyMult = { easy: 1.0, medium: 1.2, hard: 1.5 }[this.difficulty] || 1.0;
+        this.nextBossThreshold = this.lastBossScore + BossConfig.MIN_DISTANCE_BETWEEN_BOSSES * difficultyMult;
 
         if (this.boss) {
             this.boss.cleanup();
             this.boss = null;
         }
 
-        console.log(`[BossManager] Boss defeated! Bonus points: ${finalBonus}`);
+        console.log(`[BossManager] Boss defeated! Next threshold: ${this.nextBossThreshold}`);
     }
 
     onPlayerDeath() {
@@ -222,6 +242,7 @@ export class BossManager {
         if (resumePhysics) {
             this.physics.resumeDistanceProgress();
         }
+        this.lastBossScore = 0;
         this.nextBossThreshold = this._thresholdForDifficulty(this.difficulty);
         this._preloadLogged = false;
     }
