@@ -206,6 +206,102 @@
   transform: scale(0.8);
 }
 
+/* Boss HUD (New) */
+#bossHUDContainer {
+  display: none;
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70%;
+  max-width: 500px;
+  background: var(--color-bg-primary);
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: 2px solid var(--color-boss);
+  box-shadow: 0 0 20px rgba(220, 38, 38, 0.4);
+  text-align: center;
+  z-index: var(--z-hud);
+}
+
+#bossHUDContainer.damage-flash {
+  animation: flash-red 0.1s ease;
+}
+
+.boss-hud-name {
+  font-weight: bold;
+  color: var(--color-boss);
+  font-size: var(--font-size-lg);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.boss-hud-hp-track {
+  height: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  overflow: hidden;
+  margin: 6px 0;
+}
+
+#bossHPFill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+  transition: width var(--transition-fast);
+}
+
+#bossHPText {
+  font-family: 'Courier New', monospace;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  display: block;
+  margin-top: 4px;
+}
+
+.boss-hud-phase {
+  font-weight: bold;
+  font-size: var(--font-size-base);
+  margin-top: 8px;
+  transition: color var(--transition-normal);
+}
+
+/* Boss Progress HUD */
+.boss-progress-hud {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.boss-progress-track {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+#bossProgressFill {
+  height: 100%;
+  width: 0%;
+  background: var(--color-hp-medium);
+  transition: width 0.3s ease;
+}
+
+.boss-progress-hud.warning #bossProgressFill {
+  background: var(--color-hp-critical);
+  animation: pulse-red 1s infinite;
+}
+
+#bossProgressText {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-family: 'Courier New', monospace;
+}
+
 /* Notifications */
 #notificationsContainer {
   position: absolute;

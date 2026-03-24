@@ -32,11 +32,11 @@ export class BossManager {
     }
 
     _firstThresholdForDifficulty(d) {
-        return BossConfig.FIRST_BOSS_THRESHOLD[d] ?? BossConfig.FIRST_BOSS_THRESHOLD.medium;
+        return BossConfig.baseScoreThreshold;
     }
 
     _thresholdForDifficulty(d) {
-        return BossConfig.SCORE_THRESHOLD[d] ?? BossConfig.SCORE_THRESHOLD.medium;
+        return BossConfig.baseScoreThreshold;
     }
 
     /**
@@ -93,12 +93,14 @@ export class BossManager {
             bossHp: this.boss.hp / this.boss.maxHp,
             bossCurrentHp: this.boss.hp,
             bossMaxHp: this.boss.maxHp,
-            bossName: 'GENERAL ' + (this.scoreManager.bossesKilled + 1)
+            bossName: 'GENERAL ' + (this.scoreManager.bossesKilled + 1),
+            bossPhase: this.boss.currentPhase,
+            isBossActive: true
         });
     }
 
     _hideBossHUD() {
-        this.uiManager.updateHUD({ bossHp: 0 });
+        this.uiManager.updateHUD({ bossHp: 0, isBossActive: false });
         this.uiManager.setBossWarning(false);
     }
 
@@ -107,10 +109,9 @@ export class BossManager {
      */
     getBossProgressForUI(currentScore) {
         const target = this.nextBossThreshold;
-        const base = this.lastBossScore;
-        const ratio = target > base ? Math.min(1, (currentScore - base) / (target - base)) : 0;
+        const ratio = target > 0 ? Math.min(1, currentScore / target) : 0;
         
-        // Предупреждение за 500 очков (ТЗ Задача 3)
+        // Предупреждение (ТЗ Задача 3)
         if (!this.isBossActive && target - currentScore <= (BossConfig.WARNING_THRESHOLD || 500) && target - currentScore > 0) {
             this.uiManager.setBossWarning(true);
         } else if (!this.isBossActive) {
@@ -121,12 +122,20 @@ export class BossManager {
             this._preloadLogged = true;
             console.log('[BossManager] Boss preload threshold reached (80% progress)');
         }
+        
+        // Обновляем UI через UIManager
+        this.uiManager.updateHUD({
+            bossProgress: currentScore,
+            bossThreshold: target,
+            isBossActive: this.isBossActive
+        });
+
         return { 
             current: currentScore, 
             target, 
             ratio,
-            currentRelative: Math.max(0, currentScore - base),
-            targetRelative: Math.max(0, target - base)
+            currentRelative: currentScore, // Now using absolute for simplicity if requested
+            targetRelative: target
         };
     }
 
@@ -153,7 +162,9 @@ export class BossManager {
             bossHp: this.boss.hp / this.boss.maxHp,
             bossCurrentHp: this.boss.hp,
             bossMaxHp: this.boss.maxHp,
-            bossName: 'GENERAL ' + (this.scoreManager.bossesKilled + 1)
+            bossName: 'GENERAL ' + (this.scoreManager.bossesKilled + 1),
+            bossPhase: this.boss.currentPhase,
+            isBossActive: true
         });
 
         if (this.boss.hp <= this.boss.maxHp * 0.5 && !this.boss.halfHpSaved) {
@@ -245,11 +256,8 @@ export class BossManager {
     }
 
     _calculateNextBossThreshold() {
-        const bossesDefeated = this.scoreManager.bossesKilled;
-        const baseInterval = BossConfig.MIN_SCORE_INTERVAL;
-        // Порог для (bossesDefeated + 1)-го босса
-        const multiplier = Math.pow(BossConfig.INTERVAL_MULTIPLIER, bossesDefeated - 1);
-        return this.lastBossScore + Math.floor(baseInterval * multiplier);
+        const bossesKilled = this.scoreManager.bossesKilled;
+        return BossConfig.calculateNextThreshold(bossesKilled);
     }
 
     /**

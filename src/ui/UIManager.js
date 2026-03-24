@@ -9,6 +9,8 @@ import BossBar from './components/BossBar.js';
 import ComboDisplay from './components/ComboDisplay.js';
 import PowerUpIcons from './components/PowerUpIcons.js';
 import Notification from './components/Notification.js';
+import BossProgress from './components/BossProgress.js';
+import BossHUD from './components/BossHUD.js';
 import { formatNumber } from './utils/format.js';
 
 class UIManager {
@@ -39,6 +41,8 @@ class UIManager {
     this.components.combo = new ComboDisplay();
     this.components.powerUps = new PowerUpIcons();
     this.components.notifications = new Notification();
+    this.components.bossProgress = new BossProgress();
+    this.components.bossHUD = new BossHUD();
   }
 
   onStateChange(state, GameState) {
@@ -127,9 +131,19 @@ class UIManager {
       if (data.bossHp > 0) {
         const currentHp = data.bossCurrentHp !== undefined ? data.bossCurrentHp : (data.bossHp * (data.bossMaxHp || 100));
         this.showBossBar(currentHp, data.bossMaxHp || 100);
+        
+        // Use new BossHUD if data is available
+        if (data.bossName && data.bossPhase) {
+          this.updateBossHUD(data.bossName, currentHp, data.bossMaxHp || 100, data.bossPhase, true);
+        }
       } else {
         this.hideBossBar();
+        this.updateBossHUD('', 0, 1, 'PHASE_1', false);
       }
+    }
+
+    if (data.bossProgress !== undefined && data.bossThreshold !== undefined) {
+      this.updateBossProgress(data.bossProgress, data.bossThreshold, data.isBossActive === false);
     }
   }
 
@@ -195,7 +209,24 @@ class UIManager {
   }
 
   updateBossProgress(currentScore, bossThreshold, visible = true) {
-    // Implement if needed
+    if (this.components.bossProgress) {
+      if (visible) {
+        this.components.bossProgress.show();
+        this.components.bossProgress.update(currentScore, bossThreshold);
+      } else {
+        this.components.bossProgress.hide();
+      }
+    }
+  }
+
+  updateBossHUD(bossName, hp, maxHP, phase, visible = true) {
+    if (this.components.bossHUD) {
+      if (visible) {
+        this.components.bossHUD.show(bossName, hp, maxHP, phase);
+      } else {
+        this.components.bossHUD.hide();
+      }
+    }
   }
 
   resetBossProgress() {

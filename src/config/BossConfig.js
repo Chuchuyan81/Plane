@@ -4,24 +4,19 @@
  */
 
 export const BossConfig = {
-    SCORE_THRESHOLD: {
-        easy: 3000,
-        medium: 6000,
-        hard: 9000
+    /** Базовый порог очков для первого босса */
+    baseScoreThreshold: 5000,
+
+    /** Множитель увеличения порога после каждого босса */
+    thresholdGrowthMultiplier: 1.5,
+
+    /** Расчёт порога для следующего босса */
+    calculateNextThreshold: (bossesDefeated) => {
+        return Math.floor(
+            BossConfig.baseScoreThreshold * 
+            Math.pow(BossConfig.thresholdGrowthMultiplier, bossesDefeated)
+        );
     },
-
-    /** Базовые пороги для первого босса на разных сложностях */
-    FIRST_BOSS_THRESHOLD: {
-        easy: 1000,
-        medium: 1500,
-        hard: 2000
-    },
-
-    /** Минимальный интервал очков между боссами */
-    MIN_SCORE_INTERVAL: 2000,
-
-    /** Множитель интервала для каждого следующего босса (прогрессия сложности) */
-    INTERVAL_MULTIPLIER: 1.3,
 
     /** Порог предупреждения (за сколько очков до босса показывать) */
     WARNING_THRESHOLD: 500,
@@ -70,9 +65,6 @@ export const BossConfig = {
 
     /** Прелоад лог при заполнении прогресс-бара (доля от порога) */
     PRELOAD_PROGRESS: 0.8,
-
-    MIN_DISTANCE_BETWEEN_BOSSES: 2000, // Минимум очков между боссами
-    WARNING_THRESHOLD: 500, // За сколько очков до босса показывать предупреждение
 
     PLAYER: {
         MAX_HP: 100,

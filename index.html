@@ -34,13 +34,33 @@
       </div>
     </div>
     
-    <!-- Босс бар -->
-    <div id="bossBarContainer">
+    <!-- Босс бар (Старый, можно оставить для совместимости или убрать) -->
+    <div id="bossBarContainer" style="display: none;">
       <span class="boss-label">БОСС:</span>
       <div class="boss-bar-track">
         <div id="bossBarFill"></div>
       </div>
       <span id="bossBarText" class="boss-text">5000/5000</span>
+    </div>
+
+    <!-- Прогресс до босса (Новый по ТЗ) -->
+    <div id="bossProgressContainer" class="boss-progress-hud">
+      <div class="boss-progress-track">
+        <div id="bossProgressFill"></div>
+      </div>
+      <span id="bossProgressText">ДО БОССА: 0 / 5,000</span>
+    </div>
+
+    <!-- Boss HUD (Новый по ТЗ) -->
+    <div id="bossHUDContainer" style="display: none;">
+      <div class="boss-hud-name">⚠ <span id="bossNameText">GENERAL</span> ⚠</div>
+      <div class="boss-hud-hp">
+        <div class="boss-hud-hp-track">
+          <div id="bossHPFill"></div>
+        </div>
+        <span id="bossHPText">5000/5000 HP</span>
+      </div>
+      <div id="bossPhaseIndicator" class="boss-hud-phase">ФАЗА: 1 🔵</div>
     </div>
     
     <!-- Уведомления -->
@@ -125,6 +145,7 @@
     import { BossManager } from './src/managers/BossManager.js';
     import { RespawnManager } from './src/managers/RespawnManager.js';
     import { Bonus } from './src/objects/Bonus.js';
+    import AudioManager from './src/core/AudioManager.js';
 
     // Initialize UI Manager
     const uiManager = new UIManager();
@@ -577,14 +598,61 @@
 
         // Boss events for UI
         window.addEventListener('boss-spawn', (e) => {
-          uiManager.showBossBar(e.detail.hp, e.detail.max);
+          uiManager.updateBossHUD(e.detail.name, e.detail.hp, e.detail.max, 'PHASE_1', true);
         });
         window.addEventListener('boss-damage', (e) => {
-          uiManager.updateBossBar(e.detail.hp);
+          uiManager.updateBossHUD(null, e.detail.hp, e.detail.max, e.detail.phase, true);
+        });
+        window.addEventListener('boss-phase-change', (e) => {
+          uiManager.showNotification(`БОСС: ВХОДИТ В ФАЗУ ${e.detail.phase.replace('PHASE_', '')}`, 'warning', 2500);
         });
         window.addEventListener('boss-defeated', () => {
-          uiManager.hideBossBar();
+          uiManager.updateBossHUD(null, 0, 1, 'PHASE_1', false);
           uiManager.showNotification("БОСС ПОВЕРЖЕН!", "success", 3000);
+        });
+        window.addEventListener('camera-shake', (e) => {
+          shakeIntensity = e.detail.intensity || 1.0;
+          setTimeout(() => { if (shakeIntensity > 0) shakeIntensity = 0; }, e.detail.duration || 500);
+        });
+
+        window.addEventListener('boss-shoot', (e) => {
+          const { position, target, type, speedMultiplier } = e.detail;
+          const diffMods = physics.getDifficultyModifiers(currentDifficulty);
+          const bulletSpeed = (type === 'missile' ? 40 : (type === 'laser' ? 120 : 60)) * speedMultiplier;
+
+          if (type === 'pattern' || type === 'fan') {
+            const count = currentDifficulty === 'hard' ? 7 : 5;
+            for (let i = 0; i < count; i++) {
+              const angle = (i - (count - 1) / 2) * 0.3;
+              const b = new THREE.Mesh(Geoms.enemyBullet, Mats.enemyBullet);
+              b.position.copy(position);
+              const dir = new THREE.Vector3().subVectors(target, position).normalize();
+              const rotatedDir = new THREE.Vector3(
+                dir.x * Math.cos(angle) - dir.z * Math.sin(angle),
+                dir.y,
+                dir.x * Math.sin(angle) + dir.z * Math.cos(angle)
+              );
+              b.userData = { vx: rotatedDir.x * bulletSpeed, vy: rotatedDir.y * bulletSpeed, vz: rotatedDir.z * bulletSpeed };
+              scene.add(b); enemyBullets.push(b);
+            }
+          } else if (type === 'mine') {
+            const b = new THREE.Mesh(Geoms.repair, Mats.kamikaze); // Use box for mines
+            b.position.copy(position);
+            b.userData = { vx: 0, vy: 0, vz: 5 }; // Stationary mines or slowly drifting forward
+            scene.add(b); enemyBullets.push(b);
+          } else if (type === 'drone') {
+            const enemy = new Enemy('drone');
+            enemy.mesh.position.copy(position);
+            scene.add(enemy.mesh);
+            enemies.push(enemy);
+          } else {
+            const b = new THREE.Mesh(Geoms.enemyBullet, Mats.enemyBullet);
+            b.position.copy(position);
+            const dir = new THREE.Vector3().subVectors(target, position).normalize();
+            b.userData = { vx: dir.x * bulletSpeed, vy: dir.y * bulletSpeed, vz: dir.z * bulletSpeed };
+            scene.add(b); enemyBullets.push(b);
+          }
+          AudioController.playEnemyShot();
         });
     }
 
@@ -732,6 +800,7 @@
 
         let displayDistance = physics.updateDistance(player.position);
         uiManager.updateDistance(displayDistance);
+        bossManager.getBossProgressForUI(scoreManager.score);
 
         if (isBossFight) {
             bossManager.updateBoss(dt, player, gameTime, powerUps.length);
