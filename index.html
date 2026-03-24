@@ -735,7 +735,9 @@
 
         if (isBossFight) {
             bossManager.updateBoss(dt, player, gameTime, powerUps.length);
-            uiManager.updateBossBar(bossManager.boss.hp);
+            if (bossManager.boss) {
+                uiManager.updateBossBar(bossManager.boss.hp);
+            }
         } else {
             if (checkpointManager.check(displayDistance)) {
                 checkpointManager.save({ 
