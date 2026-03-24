@@ -425,7 +425,6 @@
         uiManager.updateDistance(0);
         uiManager.updateCombo(1);
         uiManager.updateHealth(player.hp, player.maxHp);
-        uiManager.hideBossBar();
         
         player.position.set(0, 40, 0);
         player.rotation.set(0, 0, 0);
@@ -603,7 +602,7 @@
         });
 
         window.addEventListener('boss-spawn-aid', (e) => {
-          const distance = e.detail.distance || 200;
+          const distance = e.detail.distance || 150;
           const pos = new THREE.Vector3(
             (Math.random() - 0.5) * 40,
             25 + Math.random() * 15,

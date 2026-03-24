@@ -1,11 +1,12 @@
 /* src/ui/styles/responsive.css */
 
-/* Mobile portrait warning */
+/* Mobile portrait warning (Disabled as requested)
 @media (orientation: portrait) and (max-width: 600px) {
   #orientationWarning {
     display: flex;
   }
 }
+*/
 
 #orientationWarning {
   display: none;

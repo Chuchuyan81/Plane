@@ -9,7 +9,7 @@ class GameOverScreen {
 
   show(score, distance) {
     if (this.container) {
-      this.container.classList.remove('hidden');
+      this.container.style.display = 'flex';
       this.container.classList.add('active');
       
       if (this.finalScore) this.finalScore.textContent = score.toLocaleString('ru-RU');
@@ -19,7 +19,7 @@ class GameOverScreen {
 
   hide() {
     if (this.container) {
-      this.container.classList.add('hidden');
+      this.container.style.display = 'none';
       this.container.classList.remove('active');
     }
   }

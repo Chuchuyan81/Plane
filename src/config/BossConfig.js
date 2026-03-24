@@ -22,18 +22,18 @@ export const BossConfig = {
     WARNING_THRESHOLD: 500,
 
     /** Настройки спавна бонусов во время боя с боссом */
-    BOSS_BONUS_SPAWN_INTERVAL: 8000, // 8 секунд
-    MAX_ACTIVE_BOSS_BONUSES: 2,
+    BOSS_BONUS_SPAWN_INTERVAL: 5000, // 5 секунд (было 8)
+    MAX_ACTIVE_BOSS_BONUSES: 3, // Было 2
 
     HP_MULTIPLIER: {
-        easy: 0.8,
-        medium: 1.2,
-        hard: 1.8
+        easy: 0.6, // Было 0.8
+        medium: 1.0, // Было 1.2
+        hard: 1.5 // Было 1.8
     },
 
     /** Базовое HP босса до множителя сложности */
-    BOSS_BASE_HP: 40,
-    BOSS_HP_PER_KILL: 40,
+    BOSS_BASE_HP: 30, // Было 40
+    BOSS_HP_PER_KILL: 30, // Было 40
 
     RESPAWN_ASSIST: {
         easy: 0.25,

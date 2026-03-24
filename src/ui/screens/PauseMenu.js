@@ -7,14 +7,14 @@ class PauseMenu {
 
   show() {
     if (this.container) {
-      this.container.classList.remove('hidden');
+      this.container.style.display = 'flex';
       this.container.classList.add('active');
     }
   }
 
   hide() {
     if (this.container) {
-      this.container.classList.add('hidden');
+      this.container.style.display = 'none';
       this.container.classList.remove('active');
     }
   }
