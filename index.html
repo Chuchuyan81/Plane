@@ -10,9 +10,6 @@
   <link rel="stylesheet" href="src/ui/styles/responsive.css">
 </head>
 <body>
-  <!-- Three.js Canvas -->
-  <canvas id="gameCanvas"></canvas>
-  
   <!-- HUD (скрыт в меню) -->
   <div id="hud" style="display: none;">
     <!-- Верхняя панель -->
@@ -114,6 +111,7 @@
   
   <!-- Main Game Script -->
   <script type="module">
+    const THREE = window.THREE;
     import { GameState, BossState } from './src/core/GameState.js';
     import { physics } from './src/core/Physics.js';
     import { inputHandler } from './src/core/InputHandler.js';
@@ -207,16 +205,22 @@
         player: new THREE.MeshPhongMaterial({ color: 0x3498db, flatShading: true, emissive: 0xffffff, emissiveIntensity: 0 })
     };
 
-    // --- 3. НАСТРОЙКА СЦЕНЫ ---
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0x87CEEB, 100, 500);
     scene.background = new THREE.Color(0x87CEEB);
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+    
+    // Canvas styling to put it behind UI
+    renderer.domElement.style.position = 'fixed';
+    renderer.domElement.style.top = '0';
+    renderer.domElement.style.left = '0';
+    renderer.domElement.style.zIndex = '1';
 
     // --- 4. СВЕТ ---
     const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);

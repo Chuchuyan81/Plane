@@ -1,7 +1,5 @@
 import { GroundMarker } from './GroundMarker.js';
 
-const THREE = window.THREE;
-
 /**
  * Пул наземных маркеров для оптимизации
  */

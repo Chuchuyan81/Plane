@@ -17,6 +17,7 @@ class UIManager {
     this.components = {};
     this.notifications = [];
     this.settings = this.loadSettings();
+    this.currentGameState = 'Menu';
   }
 
   init() {
@@ -81,7 +82,7 @@ class UIManager {
     this.hideAllScreens();
     if (this.screens[screenName]) {
       if (screenName === 'settings') {
-        const previousState = this.currentGameState || 'mainMenu';
+        const previousState = this.currentGameState || 'Menu';
         this.screens.settings.show(() => {
           if (previousState === 'Paused') this.showScreen('pauseMenu');
           else this.showScreen('mainMenu');
@@ -174,6 +175,10 @@ class UIManager {
     if (this.components.notifications) this.components.notifications.show(text, type, duration);
   }
 
+  notify(text, type = 'info', duration = 2000) {
+    this.showNotification(text, type, duration);
+  }
+
   setBossWarning(visible) {
     if (visible) {
       const warning = document.getElementById('boss-warning');
@@ -190,8 +195,7 @@ class UIManager {
   }
 
   updateBossProgress(currentScore, bossThreshold, visible = true) {
-    // This can be implemented in a future iteration as a dedicated component
-    // For now we use notifications or the boss bar directly
+    // Implement if needed
   }
 
   resetBossProgress() {
@@ -199,13 +203,17 @@ class UIManager {
   }
 
   setCheckpointBarVisible(visible) {
-    // This can be implemented as a dedicated component
+    // Implement if needed
   }
 
   updateCheckpointProgress(progress) {
-    // This can be implemented as a dedicated component
+    // Implement if needed
   }
-      return JSON.parse(localStorage.getItem('skyace3d_settings')) || {
+
+  loadSettings() {
+    try {
+      const settings = localStorage.getItem('skyace3d_settings');
+      return settings ? JSON.parse(settings) : {
         difficulty: 'medium',
         sfxVolume: 0.8,
         musicVolume: 0.6,

@@ -1,10 +1,9 @@
 import { BossState } from '../core/GameState.js';
 import { BossConfig } from '../config/BossConfig.js';
 
-const THREE = window.THREE;
-
 export class Boss {
     constructor(scene, difficulty, bossesKilled, playerPos) {
+        const THREE = window.THREE;
         this.scene = scene;
         this.difficulty = difficulty;
         this.bossesKilled = bossesKilled;

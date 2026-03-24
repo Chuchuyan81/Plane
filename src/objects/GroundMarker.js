@@ -1,10 +1,9 @@
 /**
  * Наземный маркер дистанции
  */
-const THREE = window.THREE;
-
 export class GroundMarker {
     constructor() {
+        const THREE = window.THREE;
         this.group = new THREE.Group();
         this.isVisible = false;
         

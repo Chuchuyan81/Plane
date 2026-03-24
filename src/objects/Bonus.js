@@ -1,7 +1,6 @@
-const THREE = window.THREE;
-
 export class Bonus {
     constructor(scene, type, position) {
+        const THREE = window.THREE;
         this.scene = scene;
         this.type = type;
         this.isDead = false;
