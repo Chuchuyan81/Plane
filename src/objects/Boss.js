@@ -34,6 +34,9 @@ export class Boss {
         /** Не стрелять первые N секунд после респавна */
         this.attackHoldRemaining = 0;
 
+        /** Мировая позиция в момент смерти (меш снимается сразу, для dropPosition и т.п.) */
+        this.deathOrigin = null;
+
         this._initMesh(playerPos);
         this.updatePhaseVisuals();
     }
@@ -313,49 +316,44 @@ export class Boss {
     }
 
     /**
-     * Взрыв при уничтожении: масштаб, вспышка, частицы; по завершении — callback (очистка меша снаружи).
+     * Взрыв при уничтожении: корпус сразу снимается со сцены (игрок движется — иначе «пролёт мимо»), частицы в точке гибели.
      * @param {() => void} onComplete
      */
     playDestructionExplosion(onComplete) {
-        const THREE = window.THREE;
         if (!this.mesh) {
             if (onComplete) onComplete();
             return;
         }
 
-        this._spawnDeathBurst();
-        spawnDeathExplosion(this.scene, this.mesh.position.clone(), 'boss');
+        const origin = this.mesh.position.clone();
+        this.deathOrigin = origin.clone();
+
+        this._spawnDeathBurst(origin);
+        spawnDeathExplosion(this.scene, origin, 'boss');
         window.dispatchEvent(new CustomEvent('camera-shake', { detail: { intensity: 2.5, duration: 520 } }));
 
-        const mesh = this.mesh;
-        if (mesh.material === this.hitFlashMaterial) {
-            mesh.material = this.originalMaterial;
-        }
-        if (mesh.material && mesh.material.emissive) {
-            mesh.material.emissive.setHex(0xffaa66);
-        }
-
-        const start = performance.now();
-        const dur = 750;
-        const meshStartScale = mesh.scale.x;
-
-        const step = (now) => {
-            const t = Math.min(1, (now - start) / dur);
-            const ease = t * t;
-            mesh.scale.setScalar(meshStartScale * (1 + ease * 2.4));
-            if (mesh.material && mesh.material.emissiveIntensity !== undefined) {
-                mesh.material.emissiveIntensity = (1 - t) * 3;
+        const meshToRemove = this.mesh;
+        this.mesh = null;
+        this.scene.remove(meshToRemove);
+        meshToRemove.traverse((child) => {
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) {
+                const m = child.material;
+                if (Array.isArray(m)) m.forEach((x) => x.dispose());
+                else m.dispose();
             }
-            if (t < 1) {
-                requestAnimationFrame(step);
-            } else if (onComplete) {
-                onComplete();
-            }
-        };
-        requestAnimationFrame(step);
+        });
+
+        const doneDelay = 750;
+        setTimeout(() => {
+            if (onComplete) onComplete();
+        }, doneDelay);
     }
 
-    _spawnDeathBurst() {
+    /**
+     * @param {import('three').Vector3} basePosition
+     */
+    _spawnDeathBurst(basePosition) {
         const THREE = window.THREE;
         const particleCount = 28;
         const canvas = document.createElement('canvas');
@@ -370,7 +368,7 @@ export class Boss {
         context.fillRect(0, 0, 16, 16);
         const texture = new THREE.CanvasTexture(canvas);
 
-        const base = this.mesh.position.clone();
+        const base = basePosition.clone();
         for (let i = 0; i < particleCount; i++) {
             const material = new THREE.SpriteMaterial({
                 map: texture,
@@ -422,8 +420,16 @@ export class Boss {
     }
 
     cleanup() {
-        if (this.mesh) {
-            this.scene.remove(this.mesh);
-        }
+        if (!this.mesh) return;
+        this.scene.remove(this.mesh);
+        this.mesh.traverse((child) => {
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) {
+                const m = child.material;
+                if (Array.isArray(m)) m.forEach((x) => x.dispose());
+                else m.dispose();
+            }
+        });
+        this.mesh = null;
     }
 }

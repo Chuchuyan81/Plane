@@ -1,4 +1,49 @@
 /**
+ * Краткая вспышка растущего «огненного шара» в эпицентре взрыва.
+ * @param {import('three').Scene} scene
+ * @param {import('three').Vector3} position
+ * @param {boolean} isBoss
+ */
+function spawnFireballFlash(scene, position, isBoss) {
+    const THREE = window.THREE;
+    const baseRadius = isBoss ? 6 : 1.8;
+    const geom = new THREE.SphereGeometry(baseRadius, 20, 20);
+    const mat = new THREE.MeshBasicMaterial({
+        color: 0xff7722,
+        transparent: true,
+        opacity: 0.92,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+    const ball = new THREE.Mesh(geom, mat);
+    ball.position.copy(position);
+    const startScale = 0.12;
+    ball.scale.setScalar(startScale);
+    scene.add(ball);
+
+    const dur = isBoss ? 340 : 280;
+    const maxScaleMul = isBoss ? 4.5 : 2.7;
+    const t0 = performance.now();
+
+    const tick = (time) => {
+        const elapsed = time - t0;
+        if (elapsed >= dur) {
+            scene.remove(ball);
+            geom.dispose();
+            mat.dispose();
+            return;
+        }
+        const u = elapsed / dur;
+        const ease = 1 - Math.pow(1 - u, 1.45);
+        ball.scale.setScalar(startScale + (maxScaleMul - startScale) * ease);
+        mat.opacity = 0.92 * (1 - u);
+        mat.color.setHex(u < 0.35 ? 0xffcc44 : u < 0.65 ? 0xff6611 : 0xcc2200);
+        requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+}
+
+/**
  * Вспышка и разлетающиеся осколки при уничтожении врага/босса.
  * @param {import('three').Scene} scene
  * @param {import('three').Vector3} position
@@ -9,6 +54,8 @@ export function spawnDeathExplosion(scene, position, variant = 'enemy') {
     if (!scene || !position) return;
 
     const isBoss = variant === 'boss';
+    spawnFireballFlash(scene, position, isBoss);
+
     const shardCount = isBoss ? 26 : 12;
     const shardScale = isBoss ? [1.2, 3.2] : [0.35, 0.95];
     const lifeMs = isBoss ? 900 + Math.random() * 350 : 520 + Math.random() * 220;

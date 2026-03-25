@@ -334,7 +334,9 @@ export class BossManager {
      * @param {number} missionId
      */
     _onCampaignBossDefeated(missionId) {
-        const dropPosition = this.boss ? this.boss.mesh.position.clone() : null;
+        const dropPosition = this.boss
+            ? this.boss.deathOrigin?.clone() ?? this.boss.mesh?.position?.clone() ?? null
+            : null;
 
         const finalBonus = this.scoreManager.addBossDefeatBonus(
             this.scoreManager.combo,
@@ -401,7 +403,9 @@ export class BossManager {
     }
 
     _onEndlessBossDefeated() {
-        const dropPosition = this.boss ? this.boss.mesh.position.clone() : null;
+        const dropPosition = this.boss
+            ? this.boss.deathOrigin?.clone() ?? this.boss.mesh?.position?.clone() ?? null
+            : null;
 
         const finalBonus = this.scoreManager.addBossDefeatBonus(
             this.scoreManager.combo,
