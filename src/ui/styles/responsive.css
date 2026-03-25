@@ -70,6 +70,13 @@
   }
 }
 
+/* Ландшафт / низкая высота: ширина может быть >600px, но места по вертикали мало */
+@media (max-height: 520px) {
+  .mission-grid {
+    max-height: none;
+  }
+}
+
 /* Tablet and desktop */
 @media (min-width: 900px) {
   .hud-top-panel {
