@@ -74,13 +74,22 @@
     </div>
   </div>
 
-  <div id="campaignScreen" class="screen" style="display: none;">
-    <h2>Кампания «Вторжение»</h2>
-    <p class="campaign-credits-line">Кредиты: <span id="campaignCreditsHeader">0</span></p>
+  <div id="hangarScreen" class="screen" style="display: none;">
+    <h2>АНГАР</h2>
+    <p class="campaign-credits-line">Кредиты: <span id="campaignCreditsHangar">0</span></p>
     <div id="hangarUpgrades"></div>
+    <div class="menu-buttons">
+      <button id="btnHangarLaunch" class="game-btn">ВЫЛЕТ</button>
+      <button id="btnHangarBack" class="game-btn game-btn-secondary">НАЗАД</button>
+    </div>
+  </div>
+
+  <div id="missionSelectScreen" class="screen" style="display: none;">
+    <h2>ВЫБОР МИССИИ</h2>
+    <p class="campaign-credits-line">Кредиты: <span id="campaignCreditsMission">0</span></p>
     <div id="missionGrid" class="mission-grid" role="list"></div>
     <div class="menu-buttons">
-      <button type="button" id="btnCampaignBack" class="game-btn">НАЗАД</button>
+      <button id="btnMissionSelectBack" class="game-btn">В АНГАР</button>
     </div>
   </div>
 
@@ -572,9 +581,11 @@
     function updateCampaignCreditsUI() {
         const d = campaignStorage.load();
         const el = document.getElementById('campaignCreditsValue');
-        const elH = document.getElementById('campaignCreditsHeader');
+        const elH = document.getElementById('campaignCreditsHangar');
+        const elM = document.getElementById('campaignCreditsMission');
         if (el) el.textContent = d.totalCredits.toLocaleString('ru-RU');
         if (elH) elH.textContent = d.totalCredits.toLocaleString('ru-RU');
+        if (elM) elM.textContent = d.totalCredits.toLocaleString('ru-RU');
         if (upgradeUI) upgradeUI.refresh();
     }
 
@@ -607,10 +618,17 @@
         }
     }
 
+    function showHangar() {
+        missionCompleteUI?.hide();
+        currentState = GameState.HANGAR;
+        uiManager.onStateChange(GameState.HANGAR, GameState);
+        updateCampaignCreditsUI();
+    }
+
     function showMissionSelect() {
         missionCompleteUI?.hide();
-        if (uiManager.screens.mainMenu) uiManager.screens.mainMenu.hide();
-        document.getElementById('campaignScreen').style.display = 'flex';
+        currentState = GameState.MISSION_SELECT;
+        uiManager.onStateChange(GameState.MISSION_SELECT, GameState);
         updateCampaignCreditsUI();
         buildMissionGrid();
     }
@@ -643,8 +661,6 @@
             creditsEarned: detail.creditsEarned ?? 0,
             totalCredits: detail.totalCredits != null ? detail.totalCredits : data.totalCredits
         });
-        document.getElementById('campaignScreen').style.display = 'none';
-        if (uiManager.screens.mainMenu) uiManager.screens.mainMenu.hide();
         updateCampaignCreditsUI();
     }
 
@@ -749,10 +765,7 @@
         if (missionCompleteUI) {
             missionCompleteUI.onHangar(() => {
                 missionCompleteUI.hide();
-                currentState = GameState.HANGAR;
-                uiManager.onStateChange(GameState.HANGAR, GameState);
-                showMissionSelect();
-                updateCampaignCreditsUI();
+                showHangar();
             });
         }
         uiManager.updateBestScore(scoreManager.bestScore);
@@ -912,16 +925,16 @@
     function setupEventListeners() {
         document.getElementById('btnStart').addEventListener('click', startGame);
         document.getElementById('btnRestart').addEventListener('click', startGame);
-        document.getElementById('btnCampaign').addEventListener('click', () => {
-            currentState = GameState.HANGAR;
-            uiManager.onStateChange(GameState.HANGAR, GameState);
-            showMissionSelect();
-        });
-        document.getElementById('btnCampaignBack').addEventListener('click', () => {
-            document.getElementById('campaignScreen').style.display = 'none';
+        document.getElementById('btnCampaign').addEventListener('click', showHangar);
+        
+        document.getElementById('btnHangarLaunch').addEventListener('click', showMissionSelect);
+        document.getElementById('btnHangarBack').addEventListener('click', () => {
             uiManager.showScreen('mainMenu');
             updateCampaignCreditsUI();
         });
+        
+        document.getElementById('btnMissionSelectBack').addEventListener('click', showHangar);
+
         window.addEventListener('campaign-boss-defeated', (e) => {
             completeCampaignMission(e.detail);
         });
