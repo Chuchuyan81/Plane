@@ -72,6 +72,10 @@ class UIManager {
         this.hideHUD();
         this.hideAllScreens();
         break;
+      case GameState.HANGAR:
+        this.hideHUD();
+        this.hideAllScreens();
+        break;
     }
   }
 

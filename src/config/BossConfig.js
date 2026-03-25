@@ -45,6 +45,16 @@ export const BossConfig = {
     BOSS_BASE_HP: 30, // Было 40
     BOSS_HP_PER_KILL: 30, // Было 40
 
+    /** Кампания: база HP до множителей миссии и сложности (дизайн-док §6.3) */
+    CAMPAIGN_BOSS_BASE_HP: 50,
+
+    /** Множитель сложности только для HP босса в кампании (easy / medium / hard) */
+    CAMPAIGN_DIFFICULTY_HP_MULT: {
+        easy: 1.0,
+        medium: 1.5,
+        hard: 2.2
+    },
+
     RESPAWN_ASSIST: {
         easy: 0.25,
         medium: 0.15,

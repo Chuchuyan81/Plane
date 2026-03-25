@@ -1,4 +1,5 @@
 import { GroundMarker } from './GroundMarker.js';
+import { physics } from '../core/Physics.js';
 
 /**
  * Пул наземных маркеров для оптимизации
@@ -38,6 +39,7 @@ export class GroundMarkerPool {
         if (this.scene && !marker.mesh.parent) this.scene.add(marker.mesh);
         
         marker.setup(distance, isCheckpoint);
+        physics.stylizeGroundMarker(marker);
         // В Three.js Z отрицательная для движения вперед. Y ставим на землю
         marker.mesh.position.set(0, -19.8, -distance);
         marker.visible = true;

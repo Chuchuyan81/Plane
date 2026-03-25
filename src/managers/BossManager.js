@@ -1,4 +1,5 @@
-import { BossState } from '../core/GameState.js';
+import { GameState } from '../core/GameState.js';
+import { campaignStorage } from '../utils/campaignStorage.js';
 import { Boss } from '../objects/Boss.js';
 import { BossConfig } from '../config/BossConfig.js';
 
@@ -110,7 +111,8 @@ export class BossManager {
             ? this.campaignMissionConfig.bossHPMultiplier
             : 1;
         this.boss = new Boss(scene, this.difficulty, bossKillIndex, player.position, {
-            missionHpMultiplier: missionHpMult
+            missionHpMultiplier: missionHpMult,
+            useCampaignBossHp: !!this.campaignMissionConfig
         });
 
         if (savedBossHp !== null && savedBossHp !== undefined) {
@@ -320,6 +322,24 @@ export class BossManager {
         );
         this.scoreManager.addBossKill();
 
+        let persist = { creditsEarned: 0, totalCredits: 0 };
+        let endMissionResult = null;
+        if (missionId != null) {
+            endMissionResult = this.scoreManager.endMission(
+                missionId,
+                this.scoreManager.score,
+                this.scoreManager.combo,
+                this.scoreManager.kills
+            );
+            persist = campaignStorage.recordMissionComplete(missionId, {
+                stars: endMissionResult.stars,
+                score: endMissionResult.score,
+                creditsAwarded: endMissionResult.credits
+            });
+        }
+
+        GameState.transitionTo('MISSION_COMPLETE');
+
         this.checkpointManager.forceSave({
             type: 'POST_BOSS',
             score: this.scoreManager.score,
@@ -352,7 +372,12 @@ export class BossManager {
                     missionId,
                     score: this.scoreManager.score,
                     playerNoDamage: this.playerNoDamage,
-                    maxCombo: this.scoreManager.maxCombo
+                    maxCombo: this.scoreManager.maxCombo,
+                    combo: this.scoreManager.combo,
+                    kills: this.scoreManager.kills,
+                    creditsEarned: persist.creditsEarned,
+                    totalCredits: persist.totalCredits,
+                    endMission: endMissionResult
                 }
             })
         );

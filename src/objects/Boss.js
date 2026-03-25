@@ -13,6 +13,8 @@ export class Boss {
         this.difficulty = difficulty;
         this.bossesKilled = bossesKilled;
         this.missionHpMultiplier = typeof opts.missionHpMultiplier === 'number' ? opts.missionHpMultiplier : 1;
+        /** Режим кампании: HP = CAMPAIGN_BOSS_BASE_HP × миссия × сложность */
+        this.useCampaignBossHp = !!opts.useCampaignBossHp;
 
         this.maxHp = this._calculateHp();
         this.hp = this.maxHp;
@@ -36,6 +38,13 @@ export class Boss {
     }
 
     _calculateHp() {
+        if (this.useCampaignBossHp) {
+            const base = BossConfig.CAMPAIGN_BOSS_BASE_HP;
+            const diffMult =
+                BossConfig.CAMPAIGN_DIFFICULTY_HP_MULT[this.difficulty] ??
+                BossConfig.CAMPAIGN_DIFFICULTY_HP_MULT.medium;
+            return Math.floor(base * this.missionHpMultiplier * diffMult);
+        }
         const base = BossConfig.BOSS_BASE_HP + this.bossesKilled * BossConfig.BOSS_HP_PER_KILL;
         const mult = BossConfig.HP_MULTIPLIER[this.difficulty] ?? 1.5;
         return Math.floor(base * mult * this.missionHpMultiplier);

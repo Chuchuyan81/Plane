@@ -87,11 +87,15 @@
       <p id="missionCompleteTitle"></p>
       <p>Звёзды: <span id="missionCompleteStars"></span></p>
       <p>Счёт: <span id="missionCompleteScore"></span></p>
-      <p>+ Кредиты: <span id="missionCompleteCredits"></span></p>
+      <p>Уничтожено: <span id="missionCompleteKills"></span></p>
+      <p>Комбо: <span id="missionCompleteCombo"></span></p>
+      <p>Базовая награда: <span id="missionCompleteBaseCredits"></span></p>
+      <p>Бонус комбо: <span id="missionCompleteComboBonus"></span></p>
+      <p>+ Кредиты (к зачислению): <span id="missionCompleteCredits"></span></p>
       <p>Всего кредитов: <span id="missionCompleteTotalCredits"></span></p>
     </div>
     <div class="menu-buttons">
-      <button type="button" id="btnMissionCompleteContinue" class="game-btn">К МИССИЯМ</button>
+      <button type="button" id="btnMissionCompleteHangar" class="game-btn">В АНГАР</button>
     </div>
   </div>
 
@@ -162,9 +166,10 @@
     import { RespawnManager } from './src/managers/RespawnManager.js';
     import { Bonus } from './src/objects/Bonus.js';
     import AudioManager from './src/core/AudioManager.js';
-    import { MISSIONS, getMissionById, computeMissionStars } from './src/config/MissionConfig.js';
+    import { MISSIONS, getMissionById } from './src/config/MissionConfig.js';
     import { applyMissionEnvironment } from './src/utils/missionEnvironment.js';
     import { campaignStorage } from './src/utils/campaignStorage.js';
+    import { MissionCompleteUI } from './src/ui/MissionCompleteUI.js';
 
     // Initialize UI Manager
     const uiManager = new UIManager();
@@ -186,6 +191,8 @@
     let campaignRun = { active: false, missionId: null };
     /** Множитель частоты спавна врагов из конфига миссии (1 = как в бесконечном режиме) */
     let missionSpawnMult = 1;
+    /** @type {import('./src/ui/MissionCompleteUI.js').MissionCompleteUI|null} */
+    let missionCompleteUI = null;
 
     // --- 1. АУДИО КОНТРОЛЛЕР ---
     const AudioController = {
@@ -333,7 +340,7 @@
 
     function resetVisualsToDefault() {
         applyMissionEnvironment(
-            { THREE, scene, groundMat, clouds, hemiLight, dirLight },
+            { THREE, scene, groundMat, clouds, hemiLight, dirLight, markerPool },
             'DAY'
         );
     }
@@ -375,6 +382,8 @@
     // --- 7. МАРКЕРЫ ТРАССЫ ---
     const markerPool = new GroundMarkerPool(30);
     markerPool.init(scene);
+    physics.setEnvironmentContext({ THREE, scene, groundMat, clouds, hemiLight, dirLight, markerPool });
+    missionCompleteUI = new MissionCompleteUI({ root: 'missionCompleteScreen' });
 
     // --- 8. ГЕЙМПЛЕЙНЫЕ КЛАССЫ ---
     class Enemy {
@@ -508,7 +517,7 @@
     }
 
     function showMissionSelect() {
-        document.getElementById('missionCompleteScreen').style.display = 'none';
+        missionCompleteUI?.hide();
         if (uiManager.screens.mainMenu) uiManager.screens.mainMenu.hide();
         document.getElementById('campaignScreen').style.display = 'flex';
         updateCampaignCreditsUI();
@@ -520,14 +529,8 @@
         AudioController.setCombatMuted(false);
         AudioManager.setCombatSuppressed(false);
         const mission = getMissionById(detail.missionId);
-        const stars = computeMissionStars({
-            playerNoDamage: !!detail.playerNoDamage,
-            maxCombo: detail.maxCombo ?? 1
-        });
-        const { creditsEarned, totalCredits } = campaignStorage.recordMissionComplete(detail.missionId, {
-            stars,
-            score: detail.score ?? 0
-        });
+        const end = detail.endMission;
+        const data = loadCampaignDataSafe();
         campaignRun = { active: false, missionId: null };
         missionSpawnMult = 1;
         bossManager.clearCampaignMission();
@@ -536,15 +539,28 @@
         currentState = GameState.MISSION_COMPLETE;
         uiManager.onStateChange(GameState.MISSION_COMPLETE, GameState);
         resetVisualsToDefault();
-        document.getElementById('missionCompleteTitle').textContent = mission ? mission.title : 'Миссия';
-        document.getElementById('missionCompleteStars').textContent = '★'.repeat(stars) + '☆'.repeat(3 - stars);
-        document.getElementById('missionCompleteScore').textContent = (detail.score ?? 0).toLocaleString('ru-RU');
-        document.getElementById('missionCompleteCredits').textContent = creditsEarned.toLocaleString('ru-RU');
-        document.getElementById('missionCompleteTotalCredits').textContent = totalCredits.toLocaleString('ru-RU');
-        document.getElementById('missionCompleteScreen').style.display = 'flex';
+        missionCompleteUI.show({
+            title: mission ? mission.title : 'Миссия',
+            stars: end ? end.stars : 1,
+            score: detail.score ?? 0,
+            kills: detail.kills ?? 0,
+            combo: end ? end.combo : detail.combo,
+            baseCredits: end ? end.baseReward : 0,
+            comboBonus: end ? end.comboBonus : 0,
+            creditsEarned: detail.creditsEarned ?? 0,
+            totalCredits: detail.totalCredits != null ? detail.totalCredits : data.totalCredits
+        });
         document.getElementById('campaignScreen').style.display = 'none';
         if (uiManager.screens.mainMenu) uiManager.screens.mainMenu.hide();
         updateCampaignCreditsUI();
+    }
+
+    function loadCampaignDataSafe() {
+        try {
+            return campaignStorage.load();
+        } catch (e) {
+            return { totalCredits: 0 };
+        }
     }
 
     function beginRun(options = {}) {
@@ -559,7 +575,7 @@
             campaignRun = { active: true, missionId: campaignMissionId };
             missionSpawnMult = Math.max(0.35, mission.enemySpawnMultiplier);
             applyMissionEnvironment(
-                { THREE, scene, groundMat, clouds, hemiLight, dirLight },
+                { THREE, scene, groundMat, clouds, hemiLight, dirLight, markerPool },
                 mission.environment
             );
         } else {
@@ -617,10 +633,23 @@
     }
 
     function initGameUI() {
+        if (missionCompleteUI) {
+            missionCompleteUI.onHangar(() => {
+                missionCompleteUI.hide();
+                currentState = GameState.HANGAR;
+                uiManager.onStateChange(GameState.HANGAR, GameState);
+                showMissionSelect();
+                updateCampaignCreditsUI();
+            });
+        }
         uiManager.updateBestScore(scoreManager.bestScore);
         updateCampaignCreditsUI();
         uiManager.clearBossBattleUI();
         setupEventListeners();
+        window.addEventListener('skyace-state-transition', (e) => {
+            const st = e.detail && e.detail.state;
+            if (st) currentState = st;
+        });
         uiManager.onStateChange(GameState.MENU, GameState);
     }
 
@@ -750,6 +779,7 @@
         const ms = document.getElementById('missionCompleteScreen');
         if (cs) cs.style.display = 'none';
         if (ms) ms.style.display = 'none';
+        if (missionCompleteUI) missionCompleteUI.hide();
         resetVisualsToDefault();
         AudioController.setCombatMuted(false);
         AudioManager.setCombatSuppressed(false);
@@ -760,17 +790,16 @@
     function setupEventListeners() {
         document.getElementById('btnStart').addEventListener('click', startGame);
         document.getElementById('btnRestart').addEventListener('click', startGame);
-        document.getElementById('btnCampaign').addEventListener('click', showMissionSelect);
+        document.getElementById('btnCampaign').addEventListener('click', () => {
+            currentState = GameState.HANGAR;
+            uiManager.onStateChange(GameState.HANGAR, GameState);
+            showMissionSelect();
+        });
         document.getElementById('btnCampaignBack').addEventListener('click', () => {
             document.getElementById('campaignScreen').style.display = 'none';
             uiManager.showScreen('mainMenu');
             updateCampaignCreditsUI();
         });
-        document.getElementById('btnMissionCompleteContinue').addEventListener('click', () => {
-            document.getElementById('missionCompleteScreen').style.display = 'none';
-            showMissionSelect();
-        });
-
         window.addEventListener('campaign-boss-defeated', (e) => {
             completeCampaignMission(e.detail);
         });
@@ -1192,6 +1221,7 @@
         }
 
         ground.position.z = player.position.z;
+        physics.updateMissionEnvironmentEffects(dt, player.position.z);
         clouds.forEach(c => {
             if (c.position.z > player.position.z + 50) {
                 c.position.z = player.position.z - 500 - Math.random() * 100;

@@ -1,5 +1,6 @@
 import { storage } from '../utils/storage.js';
 import { BossConfig } from '../config/BossConfig.js';
+import { MISSIONS } from '../config/MissionConfig.js';
 
 /**
  * Управление счётом и комбо
@@ -149,6 +150,52 @@ export class ScoreManager {
             bossesKilled: this.bossesKilled,
             bestScore: this.bestScore
         };
+    }
+
+    /**
+     * Итог миссии кампании: кредиты (база + бонус за комбо) и звёзды по счёту относительно порога босса.
+     * @param {number} missionId 1..15
+     * @param {number} score
+     * @param {number} combo текущее комбо (может быть дробным)
+     * @param {number} [kills]
+     */
+    endMission(missionId, score, combo, kills = 0) {
+        const mission = MISSIONS[missionId - 1];
+        if (!mission) {
+            return {
+                missionId,
+                score,
+                credits: 0,
+                stars: 1,
+                comboBonus: 0,
+                baseReward: 0,
+                kills
+            };
+        }
+        const baseReward = mission.baseCredits;
+        const comboBonus = Math.floor(combo / 10) * 100;
+        const totalCredits = baseReward + comboBonus;
+        const stars = ScoreManager.calculateStarsForMission(score, mission.bossScoreThreshold);
+        return {
+            missionId,
+            score,
+            credits: totalCredits,
+            stars,
+            comboBonus,
+            baseReward,
+            kills
+        };
+    }
+
+    /**
+     * Звёзды по счёту и порогу появления босса (абсолютный счёт миссии).
+     */
+    static calculateStarsForMission(score, scoreThreshold) {
+        const t = Math.max(1, Math.floor(Number(scoreThreshold) || 1));
+        const s = Math.max(0, Math.floor(Number(score) || 0));
+        if (s >= t) return 3;
+        if (s >= Math.floor(t * 0.75)) return 2;
+        return 1;
     }
 }
 

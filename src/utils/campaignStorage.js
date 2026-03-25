@@ -9,6 +9,7 @@ export const CAMPAIGN_DATA_VERSION = 1;
  * @property {boolean} completed
  * @property {number} stars
  * @property {number} bestScore
+ * @property {number} [bestCreditsAwarded] лучший начисленный итог кредитов за прохождение (база+комбо)
  * @property {string} [lastCompletedAt] ISO
  */
 
@@ -167,7 +168,7 @@ export function getNextAvailableMissionId(data = loadCampaignData()) {
  * Кредиты начисляются только за прирост качества относительно уже сохранённого прохождения.
  *
  * @param {number} missionId
- * @param {{ stars: number, score: number }} result
+ * @param {{ stars: number, score: number, creditsAwarded?: number }} result
  * @returns {{ creditsEarned: number, totalCredits: number }}
  */
 export function recordMissionComplete(missionId, result) {
@@ -183,19 +184,31 @@ export function recordMissionComplete(missionId, result) {
     const stars = Math.min(3, Math.max(1, Math.floor(Number(result.stars) || 1)));
     const score = Math.max(0, Math.floor(Number(result.score) || 0));
 
-    const newCreditsValue = calculateMissionCredits(mission, stars);
-    const oldCreditsValue = prev.completed
-        ? calculateMissionCredits(mission, Math.min(3, Math.max(1, Math.floor(prev.stars) || 1)))
-        : 0;
-    const creditsDelta = Math.max(0, newCreditsValue - oldCreditsValue);
+    const newCreditsValue =
+        result.creditsAwarded != null
+            ? Math.max(0, Math.floor(Number(result.creditsAwarded)))
+            : calculateMissionCredits(mission, stars);
+
+    const prevBestCredits =
+        typeof prev.bestCreditsAwarded === 'number' && prev.bestCreditsAwarded >= 0
+            ? Math.floor(prev.bestCreditsAwarded)
+            : prev.completed
+              ? calculateMissionCredits(
+                    mission,
+                    Math.min(3, Math.max(1, Math.floor(prev.stars) || 1))
+                )
+              : 0;
+    const creditsDelta = Math.max(0, newCreditsValue - prevBestCredits);
 
     const bestStars = prev.completed ? Math.max(prev.stars || 1, stars) : stars;
     const bestScore = prev.completed ? Math.max(prev.bestScore || 0, score) : score;
+    const bestCreditsAwarded = Math.max(prevBestCredits, newCreditsValue);
 
     data.missions[key] = {
         completed: true,
         stars: bestStars,
         bestScore,
+        bestCreditsAwarded,
         lastCompletedAt: new Date().toISOString()
     };
     data.totalCredits = Math.max(0, Math.floor(data.totalCredits + creditsDelta));

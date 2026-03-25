@@ -23,7 +23,8 @@ export const EnvironmentConfig = {
         groundColor: 0x2d5a3d,
         cloudDensity: 0.95,
         hemiIntensity: 0.55,
-        dirIntensity: 0.75
+        dirIntensity: 0.75,
+        visibility: 0.72
     },
     NIGHT_CITY: {
         key: 'NIGHT_CITY',
@@ -43,7 +44,9 @@ export const EnvironmentConfig = {
         groundColor: 0x2a4a3a,
         cloudDensity: 0.92,
         hemiIntensity: 0.4,
-        dirIntensity: 0.55
+        dirIntensity: 0.55,
+        visibility: 0.55,
+        weather: 'rain'
     },
     OCEAN_DAWN: {
         key: 'OCEAN_DAWN',
@@ -103,7 +106,8 @@ export const EnvironmentConfig = {
         groundColor: 0x0a0a12,
         cloudDensity: 0.15,
         hemiIntensity: 0.15,
-        dirIntensity: 0.35
+        dirIntensity: 0.35,
+        visibility: 0.48
     },
     VOID_MIST: {
         key: 'VOID_MIST',
@@ -113,7 +117,9 @@ export const EnvironmentConfig = {
         groundColor: 0x2a1a3a,
         cloudDensity: 0.55,
         hemiIntensity: 0.35,
-        dirIntensity: 0.45
+        dirIntensity: 0.45,
+        visibility: 0.62,
+        particles: 'purple'
     },
     ASTEROID_FIELD: {
         key: 'ASTEROID_FIELD',
@@ -153,7 +159,9 @@ export const EnvironmentConfig = {
         groundColor: 0x1a1028,
         cloudDensity: 0.4,
         hemiIntensity: 0.32,
-        dirIntensity: 0.42
+        dirIntensity: 0.42,
+        visibility: 0.65,
+        particles: 'purple'
     }
 };
 

@@ -76,6 +76,41 @@ export class GroundMarker {
     }
 
     /**
+     * Визуал маркера под окружение миссии (дождь, туман пустоты и т.д.).
+     * @param {object} envConfig элемент EnvironmentConfig
+     */
+    applyEnvironment(envConfig) {
+        if (!envConfig) return;
+        if (envConfig.weather === 'rain') {
+            if (this.isCheckpoint) {
+                this.planeMat.color.setHex(0xb8c9e0);
+                this.planeMat.opacity = 0.72;
+            } else {
+                this.planeMat.color.setHex(0x8fa0b8);
+                this.planeMat.opacity = 0.28;
+            }
+            return;
+        }
+        if (envConfig.particles === 'purple') {
+            if (this.isCheckpoint) {
+                this.planeMat.color.setHex(0xdd99ff);
+                this.planeMat.opacity = 0.78;
+            } else {
+                this.planeMat.color.setHex(0xb894d6);
+                this.planeMat.opacity = 0.34;
+            }
+            return;
+        }
+        if (this.isCheckpoint) {
+            this.planeMat.color.setHex(0xffd700);
+            this.planeMat.opacity = 0.8;
+        } else {
+            this.planeMat.color.setHex(0xffffff);
+            this.planeMat.opacity = 0.3;
+        }
+    }
+
+    /**
      * Создание текстуры радиального градиента для свечения
      * @private
      */
