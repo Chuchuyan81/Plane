@@ -107,13 +107,16 @@ canvas {
 #missionSelectScreen.screen::before,
 #missionSelectScreen.screen::after,
 #missionCompleteScreen.screen::before,
-#missionCompleteScreen.screen::after {
+#missionCompleteScreen.screen::after,
+#briefingScreen.screen::before,
+#briefingScreen.screen::after {
   display: none;
 }
 
 #hangarScreen.screen,
 #missionSelectScreen.screen,
-#missionCompleteScreen.screen {
+#missionCompleteScreen.screen,
+#briefingScreen.screen {
   justify-content: flex-start;
 }
 

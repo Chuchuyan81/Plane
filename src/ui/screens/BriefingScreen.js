@@ -25,10 +25,15 @@ class BriefingScreen {
     
     this.renderContent(missionData);
     this.setupListeners(callbacks);
-    this.initPreview(missionData.environment);
     
     this.container.style.display = 'flex';
     this.container.classList.add('active');
+
+    // Инициализируем превью ПОСЛЕ того как контейнер стал видимым
+    // чтобы правильно рассчитать размеры canvas
+    setTimeout(() => {
+        this.initPreview(missionData.environment);
+    }, 10);
   }
 
   hide() {
@@ -111,6 +116,7 @@ class BriefingScreen {
     this.previewCamera.lookAt(0, 0, 0);
 
     this.previewRenderer = new window.THREE.WebGLRenderer({ antialias: true, alpha: true });
+    this.previewRenderer.setClearColor(0x000000, 0);
     this.previewRenderer.setSize(width, height);
     this.sectorPreview.innerHTML = '';
     this.sectorPreview.appendChild(this.previewRenderer.domElement);
