@@ -18,13 +18,31 @@ export class InputHandler {
 
     _setupEvents() {
         // Тач-события
-        window.addEventListener('touchstart', e => this._handleInputStart(e.touches[0].clientX, e.touches[0].clientY), {passive:false});
-        window.addEventListener('touchmove', e => { e.preventDefault(); this._handleInputMove(e.touches[0].clientX, e.touches[0].clientY); }, {passive:false});
+        window.addEventListener('touchstart', e => {
+            if (e.target.closest('.screen')) return;
+            this._handleInputStart(e.touches[0].clientX, e.touches[0].clientY);
+        }, {passive:false});
+        
+        window.addEventListener('touchmove', e => { 
+            if (this.isJoystickActive) {
+                e.preventDefault(); 
+                this._handleInputMove(e.touches[0].clientX, e.touches[0].clientY); 
+            }
+        }, {passive:false});
+        
         window.addEventListener('touchend', () => this._handleInputEnd());
 
         // Мышь
-        window.addEventListener('mousedown', e => this._handleInputStart(e.clientX, e.clientY));
-        window.addEventListener('mousemove', e => { if(this.isJoystickActive) this._handleInputMove(e.clientX, e.clientY); });
+        window.addEventListener('mousedown', e => {
+            if (e.target.closest('.screen')) return;
+            this._handleInputStart(e.clientX, e.clientY);
+        });
+        window.addEventListener('mousemove', e => { 
+            if(this.isJoystickActive) {
+                e.preventDefault();
+                this._handleInputMove(e.clientX, e.clientY); 
+            }
+        }, {passive:false});
         window.addEventListener('mouseup', () => this._handleInputEnd());
 
         // Клавиатура
