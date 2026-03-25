@@ -7,7 +7,8 @@
   <link rel="stylesheet" href="src/ui/styles/main.css">
   <link rel="stylesheet" href="src/ui/styles/components.css">
   <link rel="stylesheet" href="src/ui/styles/animations.css">
-  <link rel="stylesheet" href="src/ui/styles/responsive.css">
+    <link rel="stylesheet" href="src/ui/styles/responsive.css">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
 </head>
 <body>
   <!-- HUD (скрыт в меню) -->
@@ -757,7 +758,7 @@
     }
 
     function startCampaignMission(missionId) {
-        document.getElementById('campaignScreen').style.display = 'none';
+        document.getElementById('missionSelectScreen').style.display = 'none';
         beginRun({ campaignMissionId: missionId });
     }
 
@@ -910,10 +911,12 @@
         campaignRun = { active: false, missionId: null };
         missionSpawnMult = 1;
         bossManager.clearCampaignMission();
-        const cs = document.getElementById('campaignScreen');
-        const ms = document.getElementById('missionCompleteScreen');
-        if (cs) cs.style.display = 'none';
-        if (ms) ms.style.display = 'none';
+        const hs = document.getElementById('hangarScreen');
+        const msSelect = document.getElementById('missionSelectScreen');
+        const msComplete = document.getElementById('missionCompleteScreen');
+        if (hs) hs.style.display = 'none';
+        if (msSelect) msSelect.style.display = 'none';
+        if (msComplete) msComplete.style.display = 'none';
         if (missionCompleteUI) missionCompleteUI.hide();
         resetVisualsToDefault();
         AudioController.setCombatMuted(false);

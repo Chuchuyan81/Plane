@@ -102,14 +102,17 @@ canvas {
  * Ангар и экран награды: много контента по вертикали. Псевдо-пружины оставляют пустые полосы
  * и на части устройств миссии оказываются «под срезом» без нормальной прокрутки — убираем их.
  */
-#campaignScreen.screen::before,
-#campaignScreen.screen::after,
+#hangarScreen.screen::before,
+#hangarScreen.screen::after,
+#missionSelectScreen.screen::before,
+#missionSelectScreen.screen::after,
 #missionCompleteScreen.screen::before,
 #missionCompleteScreen.screen::after {
   display: none;
 }
 
-#campaignScreen.screen,
+#hangarScreen.screen,
+#missionSelectScreen.screen,
 #missionCompleteScreen.screen {
   justify-content: flex-start;
 }
