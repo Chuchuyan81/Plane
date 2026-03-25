@@ -64,7 +64,6 @@ class UIManager {
         break;
       case GameState.BOSS_FIGHT:
         this.showHUD();
-        this.showBossWarning();
         break;
       case GameState.RESPAWNING:
         this.showHUD();
@@ -151,6 +150,9 @@ class UIManager {
 
   /** Сброс всех индикаторов боя с боссом (старт миссии / меню) */
   clearBossBattleUI() {
+    if (this.components.notifications) {
+      this.components.notifications.clearAll();
+    }
     this.setBossWarning(false);
     this.updateBossHUD('', 0, 1, 'PHASE_1', false);
     this.updateBossProgress(0, 1, false, 0);
@@ -190,19 +192,15 @@ class UIManager {
     this.showNotification(text, type, duration);
   }
 
+  /**
+   * Флаг предупреждения для HUD (полоса «до босса»). Без тоста: в разметке нет #boss-warning,
+   * а всплывающее «ВНИМАНИЕ: БОСС!» давало ложные срабатывания между миссиями.
+   */
   setBossWarning(visible) {
-    if (visible) {
-      const warning = document.getElementById('boss-warning');
-      if (warning) warning.style.display = 'block';
-      else this.showBossWarning();
-    } else {
-      const warning = document.getElementById('boss-warning');
-      if (warning) warning.style.display = 'none';
+    const warning = document.getElementById('boss-warning');
+    if (warning) {
+      warning.style.display = visible ? 'block' : 'none';
     }
-  }
-
-  showBossWarning() {
-    this.showNotification('ВНИМАНИЕ: БОСС!', 'danger', 3000);
   }
 
   updateBossProgress(currentScore, bossThreshold, visible = true, baseline = 0) {

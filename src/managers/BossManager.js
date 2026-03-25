@@ -182,7 +182,8 @@ export class BossManager {
             const inApproachZone =
                 currentScore > baseline &&
                 currentScore < target &&
-                target - currentScore <= warnDist;
+                target - currentScore <= warnDist &&
+                ratioInInterval >= progressFrom;
             if (inApproachZone) {
                 this.uiManager.setBossWarning(true);
             } else {
