@@ -11,7 +11,9 @@ export const GameState = {
     /** Хаб кампании: выбор миссий (ангар) */
     HANGAR: 'Hangar',
     /** Экран выбора миссий */
-    MISSION_SELECT: 'Mission Select'
+    MISSION_SELECT: 'Mission Select',
+    /** Экран брифинга перед миссией */
+    BRIEFING: 'Briefing'
 };
 
 /**
@@ -23,6 +25,7 @@ GameState.transitionTo = function transitionTo(key) {
         MISSION_COMPLETE: GameState.MISSION_COMPLETE,
         HANGAR: GameState.HANGAR,
         MISSION_SELECT: GameState.MISSION_SELECT,
+        BRIEFING: GameState.BRIEFING,
         PLAYING: GameState.PLAYING,
         MENU: GameState.MENU
     };

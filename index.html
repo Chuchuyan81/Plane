@@ -7,8 +7,9 @@
   <link rel="stylesheet" href="src/ui/styles/main.css">
   <link rel="stylesheet" href="src/ui/styles/components.css">
   <link rel="stylesheet" href="src/ui/styles/animations.css">
-    <link rel="stylesheet" href="src/ui/styles/responsive.css">
-    <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="src/ui/styles/responsive.css">
+  <link rel="stylesheet" href="src/ui/styles/briefing.css">
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
 </head>
 <body>
   <!-- HUD (скрыт в меню) -->
@@ -91,6 +92,36 @@
     <div id="missionGrid" class="mission-grid" role="list"></div>
     <div class="menu-buttons">
       <button id="btnMissionSelectBack" class="game-btn">В АНГАР</button>
+    </div>
+  </div>
+
+  <div id="briefingScreen" class="screen" style="display: none;">
+    <div class="briefing-header">
+      <div id="briefing-mission-number" class="briefing-mission-number">МИССИЯ #01</div>
+      <h2 id="briefing-mission-title" class="briefing-mission-title">НАЗВАНИЕ МИССИИ</h2>
+    </div>
+    
+    <div id="sector-preview-container" class="sector-preview-container">
+      <!-- Three.js превью будет здесь -->
+    </div>
+    
+    <div class="briefing-content">
+      <div id="briefing-text-content" class="briefing-text-content">
+        <!-- Текст брифинга будет здесь -->
+      </div>
+      
+      <div class="intel-panel">
+        <h3>ДАННЫЕ РАЗВЕДКИ:</h3>
+        <div id="enemy-intel-panel" class="enemy-intel-list">
+          <!-- Карточки врагов будут здесь -->
+        </div>
+      </div>
+    </div>
+    
+    <div class="briefing-actions">
+      <button id="briefing-btn-back" class="game-btn game-btn-secondary">НАЗАД</button>
+      <button id="briefing-btn-upgrades" class="game-btn">СНАРЯЖЕНИЕ</button>
+      <button id="briefing-btn-start" class="game-btn game-btn-primary">В БОЙ!</button>
     </div>
   </div>
 
@@ -190,6 +221,7 @@
     import { MissionCompleteUI } from './src/ui/MissionCompleteUI.js';
     import { getStatsForUpgrades } from './src/managers/UpgradeManager.js';
     import { UpgradeUI } from './src/ui/UpgradeUI.js';
+    import BriefingScreen from './src/ui/screens/BriefingScreen.js';
 
     // Initialize UI Manager
     const uiManager = new UIManager();
@@ -613,17 +645,84 @@
             btn.textContent = label;
             btn.disabled = status === 'locked';
             btn.addEventListener('click', () => {
-                if (status !== 'locked') startCampaignMission(m.id);
+                if (status !== 'locked') showBriefing(m.id);
             });
             grid.appendChild(btn);
         }
     }
 
+    function showBriefing(missionId) {
+        const mission = getMissionById(missionId);
+        if (!mission) return;
+
+        currentState = GameState.BRIEFING;
+        uiManager.onStateChange(GameState.BRIEFING, GameState);
+
+        uiManager.screens.briefing.show(mission, {
+            missionId: missionId,
+            onBack: showMissionSelect,
+            onUpgrades: showHangar,
+            onStart: (id) => startCampaignMission(id)
+        });
+    }
+
     function showHangar() {
         missionCompleteUI?.hide();
+        const data = campaignStorage.load();
+        if (data.missions && Object.keys(data.missions).length === 0 && !localStorage.getItem('skyace3d_intro_shown')) {
+            showIntroBriefing();
+            return;
+        }
         currentState = GameState.HANGAR;
         uiManager.onStateChange(GameState.HANGAR, GameState);
         updateCampaignCreditsUI();
+    }
+
+    function showIntroBriefing() {
+        const introData = {
+            id: 0,
+            title: 'ДОБРО ПОЖАЛОВАТЬ В ПРОГРАММУ «НЕБЕСНЫЙ ТУЗ»',
+            briefingText: `
+                <p><strong>ПИЛОТ, ВАШЕ ПРИЗВАНИЕ НАЙДЕНО.</strong></p>
+                <p>03.2047 — Контакт установлен. Неизвестные объекты обнаружены в верхних слоях атмосферы. Они называют себя «Пустотный Легион». Их цель — терраформирование Земли.</p>
+                <p><strong>ВЫ — ЕДИНСТВЕННЫЙ, КТО МОЖЕТ ОСТАНОВИТЬ ИХ.</strong></p>
+                <p>Ваш истребитель-перехватчик оснащён экспериментальными системами. В ангаре вы можете модернизировать:</p>
+                <ul>
+                    <li>Броню корпуса</li>
+                    <li>Огневую мощь</li>
+                    <li>Двигатель и маневренность</li>
+                    <li>Системы поддержки</li>
+                </ul>
+                <p>ЗЕМЛЯ РАЗДЕЛЕНА НА 15 СЕКТОРОВ ОБОРОНЫ. Каждый сектор защищается флагманом Легиона. Уничтожьте все 15 флагманов — и вторжение прекратится.</p>
+                <p>⚠️ <strong>ПРЕДУПРЕЖДЕНИЕ:</strong> Кредиты, заработанные в боях, сохраняются после гибели. Используйте их для улучшений между миссиями.</p>
+                <p>УДАЧИ, ПИЛОТ. НЕБО НАДЕЕТСЯ НА ВАС.</p>
+            `,
+            environment: 'DAY',
+            enemies: ['Пустотный Легион'],
+            bossName: '15 Флагманов',
+            baseCredits: 0
+        };
+
+        currentState = GameState.BRIEFING;
+        uiManager.onStateChange(GameState.BRIEFING, GameState);
+
+        uiManager.screens.briefing.show(introData, {
+            onBack: quitToMenu,
+            onUpgrades: () => {
+                localStorage.setItem('skyace3d_intro_shown', 'true');
+                showHangar();
+            },
+            onStart: () => {
+                localStorage.setItem('skyace3d_intro_shown', 'true');
+                showMissionSelect();
+            }
+        });
+        
+        // Переименовываем кнопку для интро
+        const startBtn = document.getElementById('briefing-btn-start');
+        if (startBtn) startBtn.textContent = 'ПРИНЯТЬ ЗАДАНИЕ';
+        const backBtn = document.getElementById('briefing-btn-back');
+        if (backBtn) backBtn.textContent = 'ПРОПУСТИТЬ';
     }
 
     function showMissionSelect() {

@@ -176,6 +176,9 @@ export const EnvironmentConfig = {
  * @property {number} bossScoreThreshold абсолютный счёт для появления босса
  * @property {number} baseCredits базовая награда (итог: × (1 + 0.1 × звёзды))
  * @property {number} bonusCreditsPerStar доп. кредиты за звезду сверх формулы (опционально 0)
+ * @property {string} briefingText текст брифинга
+ * @property {string[]} enemies список врагов (для разведданных)
+ * @property {string} bossName имя босса
  */
 
 /** @type {MissionDefinition[]} */
@@ -189,7 +192,19 @@ export const MISSIONS = [
         enemySpawnMultiplier: 0.58,
         bossScoreThreshold: 3600,
         baseCredits: 500,
-        bonusCreditsPerStar: 0
+        bonusCreditsPerStar: 0,
+        briefingText: `
+            <p><strong>📡 РАЗВЕДДАННЫЕ:</strong></p>
+            <p>Первые волны врага замечены над центральным регионом. Это базовые разведывательные дроны «Глаз». Они сканируют поверхность в поисках целей для вторжения.</p>
+            <p><strong>🎯 ЦЕЛИ ОПЕРАЦИИ:</strong></p>
+            <ul>
+                <li>Уничтожить разведывательную группу</li>
+                <li>Ликвидировать командира сектора «Глаз»</li>
+                <li>Не допустить передачи данных на орбиту</li>
+            </ul>
+        `,
+        enemies: ['Drone (Разведчик)'],
+        bossName: '«Глаз»'
     },
     {
         id: 2,
@@ -200,7 +215,19 @@ export const MISSIONS = [
         enemySpawnMultiplier: 0.62,
         bossScoreThreshold: 4000,
         baseCredits: 600,
-        bonusCreditsPerStar: 0
+        bonusCreditsPerStar: 0,
+        briefingText: `
+            <p><strong>📡 РАЗВЕДДАННЫЕ:</strong></p>
+            <p>Враг адаптируется. Новые единицы замечены в плотных облачных слоях. Они используют облака для маскировки и внезапных атак.</p>
+            <p><strong>🎯 ЦЕЛИ ОПЕРАЦИИ:</strong></p>
+            <ul>
+                <li>Прочесать облачный слой</li>
+                <li>Уничтожить штурмовые дроны «Клык»</li>
+                <li>Обеспечить безопасность наземных объектов</li>
+            </ul>
+        `,
+        enemies: ['Drone', 'Kamikaze'],
+        bossName: '«Клык»'
     },
     {
         id: 3,
@@ -211,7 +238,19 @@ export const MISSIONS = [
         enemySpawnMultiplier: 0.68,
         bossScoreThreshold: 4200,
         baseCredits: 700,
-        bonusCreditsPerStar: 0
+        bonusCreditsPerStar: 0,
+        briefingText: `
+            <p><strong>📡 РАЗВЕДДАННЫЕ:</strong></p>
+            <p>Ночное небо больше не безопасно. Вражеские шутеры используют темноту для скрытного огня. Их пули трудно заметить до последнего момента.</p>
+            <p><strong>🎯 ЦЕЛИ ОПЕРАЦИИ:</strong></p>
+            <ul>
+                <li>Патрулирование ночного сектора</li>
+                <li>Ликвидация снайперских дронов «Призрак»</li>
+                <li>Защита гражданского воздушного пространства</li>
+            </ul>
+        `,
+        enemies: ['Drone', 'Shooter'],
+        bossName: '«Призрак»'
     },
     {
         id: 4,
@@ -222,7 +261,19 @@ export const MISSIONS = [
         enemySpawnMultiplier: 0.78,
         bossScoreThreshold: 5200,
         baseCredits: 800,
-        bonusCreditsPerStar: 0
+        bonusCreditsPerStar: 0,
+        briefingText: `
+            <p><strong>📡 РАЗВЕДДАННЫЕ:</strong></p>
+            <p>Враг научился использовать погоду. Молнии наносят урон всем — и нам, и им. Грозовой фронт стал полем боя.</p>
+            <p><strong>🎯 ЦЕЛИ ОПЕРАЦИИ:</strong></p>
+            <ul>
+                <li>Прорыв через штормовой коридор</li>
+                <li>Уничтожение погодных манипуляторов «Шквал»</li>
+                <li>Предотвращение климатического оружия</li>
+            </ul>
+        `,
+        enemies: ['Kamikaze', 'Shooter', 'Молнии'],
+        bossName: '«Шквал»'
     },
     {
         id: 5,
@@ -233,7 +284,19 @@ export const MISSIONS = [
         enemySpawnMultiplier: 0.88,
         bossScoreThreshold: 5800,
         baseCredits: 1000,
-        bonusCreditsPerStar: 0
+        bonusCreditsPerStar: 0,
+        briefingText: `
+            <p><strong>📡 РАЗВЕДДАННЫЕ:</strong></p>
+            <p>Критическая точка. Враг закрепился над океаном, блокируя морские пути. Флагман «Левиафан» координирует все операции в регионе.</p>
+            <p><strong>🎯 ЦЕЛИ ОПЕРАЦИИ:</strong></p>
+            <ul>
+                <li>Прорыв морской блокады</li>
+                <li>Уничтожение флагмана сектора «Левиафан»</li>
+                <li>Открытие пути к стратосфере</li>
+            </ul>
+        `,
+        enemies: ['Все типы'],
+        bossName: '«Левиафан»'
     },
     {
         id: 6,
@@ -244,7 +307,19 @@ export const MISSIONS = [
         enemySpawnMultiplier: 0.92,
         bossScoreThreshold: 6200,
         baseCredits: 1200,
-        bonusCreditsPerStar: 0
+        bonusCreditsPerStar: 0,
+        briefingText: `
+            <p><strong>📡 РАЗВЕДДАННЫЕ:</strong></p>
+            <p>Мы выходим за пределы стандартной зоны ПВО. Воздух разрежен, скорость полёта выше. Враг развернул элитные перехватчики.</p>
+            <p><strong>🎯 ЦЕЛИ ОПЕРАЦИИ:</strong></p>
+            <ul>
+                <li>Перехват элитных дронов</li>
+                <li>Ликвидация перехватчика «Сокол»</li>
+                <li>Сбор данных о высоте вторжения</li>
+            </ul>
+        `,
+        enemies: ['Elite Drone', 'Elite Shooter'],
+        bossName: '«Сокол»'
     },
     {
         id: 7,
@@ -255,7 +330,19 @@ export const MISSIONS = [
         enemySpawnMultiplier: 0.98,
         bossScoreThreshold: 6800,
         baseCredits: 1400,
-        bonusCreditsPerStar: 0
+        bonusCreditsPerStar: 0,
+        briefingText: `
+            <p><strong>📡 РАЗВЕДДАННЫЕ:</strong></p>
+            <p>Орбита заполнена обломками старых спутников. Враг использует их как прикрытие и оружие. Столкновение с обломком фатально.</p>
+            <p><strong>🎯 ЦЕЛИ ОПЕРАЦИИ:</strong></p>
+            <ul>
+                <li>Навигация через поле обломков</li>
+                <li>Уничтожение сборщика «Хлам»</li>
+                <li>Очистка орбитального пути</li>
+            </ul>
+        `,
+        enemies: ['Kamikaze', 'Обломки'],
+        bossName: '«Хлам»'
     },
     {
         id: 8,
@@ -266,7 +353,19 @@ export const MISSIONS = [
         enemySpawnMultiplier: 1.05,
         bossScoreThreshold: 7200,
         baseCredits: 1600,
-        bonusCreditsPerStar: 0
+        bonusCreditsPerStar: 0,
+        briefingText: `
+            <p><strong>📡 РАЗВЕДДАННЫЕ:</strong></p>
+            <p>Полярный сектор. Электромагнитные помехи от сияния искажают сенсоры. Враг маскирует свои сигналы под естественные вспышки.</p>
+            <p><strong>🎯 ЦЕЛИ ОПЕРАЦИИ:</strong></p>
+            <ul>
+                <li>Работа в условиях помех</li>
+                <li>Разоблачение иллюзиониста «Мираж»</li>
+                <li>Восстановление связи с полярными станциями</li>
+            </ul>
+        `,
+        enemies: ['Shooter', 'Drone (маскировка)'],
+        bossName: '«Мираж»'
     },
     {
         id: 9,
@@ -277,7 +376,19 @@ export const MISSIONS = [
         enemySpawnMultiplier: 1.12,
         bossScoreThreshold: 7800,
         baseCredits: 1800,
-        bonusCreditsPerStar: 0
+        bonusCreditsPerStar: 0,
+        briefingText: `
+            <p><strong>📡 РАЗВЕДДАННЫЕ:</strong></p>
+            <p>Враг захватил старую орбитальную станцию. Статичные турели создают плотный огневой заслон. Манёвр почти невозможен.</p>
+            <p><strong>🎯 ЦЕЛИ ОПЕРАЦИИ:</strong></p>
+            <ul>
+                <li>Прорыв турельного кольца</li>
+                <li>Штурм платформы «Цитадель»</li>
+                <li>Возврат контроля над орбитой</li>
+            </ul>
+        `,
+        enemies: ['Turret (турель)'],
+        bossName: '«Цитадель»'
     },
     {
         id: 10,
@@ -288,7 +399,19 @@ export const MISSIONS = [
         enemySpawnMultiplier: 1.18,
         bossScoreThreshold: 8400,
         baseCredits: 2000,
-        bonusCreditsPerStar: 0
+        bonusCreditsPerStar: 0,
+        briefingText: `
+            <p><strong>📡 РАЗВЕДДАННЫЕ:</strong></p>
+            <p>Сектор в тени Луны. Видимость нулевая. Вражеские камикадзе невидимы до момента атаки. Командир флота «Войд» лично координирует операцию.</p>
+            <p><strong>🎯 ЦЕЛИ ОПЕРАЦИИ:</strong></p>
+            <ul>
+                <li>Бой в полной темноте</li>
+                <li>Ликвидация командира «Войд»</li>
+                <li>Завершение Акта 2 — выход к источнику</li>
+            </ul>
+        `,
+        enemies: ['Elite Kamikaze'],
+        bossName: '«Войд»'
     },
     {
         id: 11,
@@ -299,7 +422,19 @@ export const MISSIONS = [
         enemySpawnMultiplier: 1.22,
         bossScoreThreshold: 9200,
         baseCredits: 2500,
-        bonusCreditsPerStar: 0
+        bonusCreditsPerStar: 0,
+        briefingText: `
+            <p><strong>📡 РАЗВЕДДАННЫЕ:</strong></p>
+            <p>Мы пересекли границу. Это уже не земное пространство. Геометрия искажена. Враги регенерируют, если не уничтожать их быстро.</p>
+            <p><strong>🎯 ЦЕЛИ ОПЕРАЦИИ:</strong></p>
+            <ul>
+                <li>Вход на территорию Легиона</li>
+                <li>Уничтожение хранителя «Аргус»</li>
+                <li>Поддержание комбо для блокировки регенерации</li>
+            </ul>
+        `,
+        enemies: ['Все элитные враги'],
+        bossName: '«Аргус»'
     },
     {
         id: 12,
@@ -310,7 +445,19 @@ export const MISSIONS = [
         enemySpawnMultiplier: 1.28,
         bossScoreThreshold: 9800,
         baseCredits: 3000,
-        bonusCreditsPerStar: 0
+        bonusCreditsPerStar: 0,
+        briefingText: `
+            <p><strong>📡 РАЗВЕДДАННЫЕ:</strong></p>
+            <p>Астероидный пояс вокруг базы врага. Камни летят со всех сторон. Бурильщик «Крот» разрушает астероиды, создавая дополнительные угрозы.</p>
+            <p><strong>🎯 ЦЕЛИ ОПЕРАЦИИ:</strong></p>
+            <ul>
+                <li>Навигация в хаотичном поле</li>
+                <li>Ликвидация бурильщика «Крот»</li>
+                <li>Приближение к материнскому кораблю</li>
+            </ul>
+        `,
+        enemies: ['Shooter', 'Астероиды'],
+        bossName: '«Крот»'
     },
     {
         id: 13,
@@ -321,7 +468,19 @@ export const MISSIONS = [
         enemySpawnMultiplier: 1.32,
         bossScoreThreshold: 10500,
         baseCredits: 3500,
-        bonusCreditsPerStar: 0
+        bonusCreditsPerStar: 0,
+        briefingText: `
+            <p><strong>📡 РАЗВЕДДАННЫЕ:</strong></p>
+            <p>Весь флот Легиона собран здесь. Волны врагов бесконечны. Адмирал «Легион» управляет ими в реальном времени. Время на исходе.</p>
+            <p><strong>🎯 ЦЕЛИ ОПЕРАЦИИ:</strong></p>
+            <ul>
+                <li>Прорыв через флот</li>
+                <li>Убийство адмирала до подкрепления</li>
+                <li>Ограниченное время на босса</li>
+            </ul>
+        `,
+        enemies: ['Drone', 'Shooter (x2)'],
+        bossName: '«Легион»'
     },
     {
         id: 14,
@@ -332,7 +491,19 @@ export const MISSIONS = [
         enemySpawnMultiplier: 1.36,
         bossScoreThreshold: 11200,
         baseCredits: 4000,
-        bonusCreditsPerStar: 0
+        bonusCreditsPerStar: 0,
+        briefingText: `
+            <p><strong>📡 РАЗВЕДДАННЫЕ:</strong></p>
+            <p>Материнский корабль на виду. Но он защищён энергетическим щитом. Нужно уничтожить генераторы щита перед атакой на цель.</p>
+            <p><strong>🎯 ЦЕЛИ ОПЕРАЦИИ:</strong></p>
+            <ul>
+                <li>Уничтожение генераторов щита</li>
+                <li>Прорыв защиты «Барьер»</li>
+                <li>Подготовка к финальному штурму</li>
+            </ul>
+        `,
+        enemies: ['Elite All', 'Ракеты'],
+        bossName: '«Барьер»'
     },
     {
         id: 15,
@@ -343,7 +514,19 @@ export const MISSIONS = [
         enemySpawnMultiplier: 1.42,
         bossScoreThreshold: 12000,
         baseCredits: 5000,
-        bonusCreditsPerStar: 0
+        bonusCreditsPerStar: 0,
+        briefingText: `
+            <p><strong>📡 РАЗВЕДДАННЫЕ:</strong></p>
+            <p>ТЫ ВНУТРИ. Это сердце вторжения. Органическая структура корабля. Прах Пустоты «Зеро» — источник всей угрозы. Три фазы боя. Нет права на ошибку.</p>
+            <p><strong>🎯 ЦЕЛИ ОПЕРАЦИИ:</strong></p>
+            <ul>
+                <li>Уничтожение источника вторжения</li>
+                <li>Ликвидация «Зеро» (3 фазы)</li>
+                <li>ЗАВЕРШЕНИЕ КАМПАНИИ</li>
+            </ul>
+        `,
+        enemies: ['Бесконечные волны'],
+        bossName: '«Зеро»'
     }
 ];
 

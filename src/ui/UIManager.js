@@ -6,6 +6,7 @@ import GameOverScreen from './screens/GameOverScreen.js';
 import SettingsScreen from './screens/SettingsScreen.js';
 import HangarScreen from './screens/HangarScreen.js';
 import MissionSelectScreen from './screens/MissionSelectScreen.js';
+import BriefingScreen from './screens/BriefingScreen.js';
 import HealthBar from './components/HealthBar.js';
 import ComboDisplay from './components/ComboDisplay.js';
 import PowerUpIcons from './components/PowerUpIcons.js';
@@ -36,6 +37,7 @@ class UIManager {
     this.screens.settings = new SettingsScreen();
     this.screens.hangar = new HangarScreen();
     this.screens.missionSelect = new MissionSelectScreen();
+    this.screens.briefing = new BriefingScreen();
   }
 
   createComponents() {
@@ -82,6 +84,10 @@ class UIManager {
         break;
       case GameState.MISSION_SELECT:
         this.showScreen('missionSelect');
+        this.hideHUD();
+        break;
+      case GameState.BRIEFING:
+        this.showScreen('briefing');
         this.hideHUD();
         break;
     }
