@@ -63,6 +63,11 @@
     height: 40px;
     font-size: 20px;
   }
+
+  /* Одна зона прокрутки — весь `.screen`, без вложенного скролла сетки миссий */
+  .mission-grid {
+    max-height: none;
+  }
 }
 
 /* Tablet and desktop */

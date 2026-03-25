@@ -377,6 +377,10 @@
   width: min(920px, 92vw);
   max-height: min(52vh, 420px);
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   margin-bottom: 16px;
   padding: 4px;
 }
