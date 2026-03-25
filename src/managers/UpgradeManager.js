@@ -5,6 +5,8 @@ import { campaignStorage } from '../utils/campaignStorage.js';
 export const UpgradeTree = {
     hull: {
         name: 'Броня',
+        description:
+            'Увеличивает максимальное HP в кампании: чем выше уровень, тем больше запас прочности перед следующей миссией.',
         baseCost: 100,
         costMultiplier: 1.5,
         maxLevel: 5,
@@ -12,6 +14,8 @@ export const UpgradeTree = {
     },
     weapons: {
         name: 'Орудия',
+        description:
+            'Усиливает урон ваших снарядов в кампании — враги и босс получают больше повреждений от каждого попадания.',
         baseCost: 150,
         costMultiplier: 1.6,
         maxLevel: 5,
@@ -19,6 +23,8 @@ export const UpgradeTree = {
     },
     engine: {
         name: 'Двигатель',
+        description:
+            'Сокращает время перезарядки рывка вперёд (кнопка «Рывок» или пробел во время миссии) — чаще можно уклониться.',
         baseCost: 120,
         costMultiplier: 1.5,
         maxLevel: 5,
@@ -26,6 +32,8 @@ export const UpgradeTree = {
     },
     systems: {
         name: 'Системы',
+        description:
+            'Увеличивает дистанцию, с которой бонусы «цепляются» к самолёту — проще подбирать усиления, не рискуя траекторией.',
         baseCost: 100,
         costMultiplier: 1.4,
         maxLevel: 5,

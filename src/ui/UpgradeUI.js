@@ -64,6 +64,12 @@ export class UpgradeUI {
             lvlEl.textContent = `${level} / ${node.maxLevel}`;
             left.appendChild(nameEl);
             left.appendChild(lvlEl);
+            if (node.description) {
+                const descEl = document.createElement('p');
+                descEl.className = 'upgrade-branch-desc';
+                descEl.textContent = node.description;
+                left.appendChild(descEl);
+            }
 
             const costEl = document.createElement('span');
             costEl.className = 'upgrade-branch-cost';
