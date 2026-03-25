@@ -5,7 +5,9 @@ export const GameState = {
     PAUSED: 'Paused',
     RESPAWNING: 'Respawning',
     GAMEOVER: 'Game Over',
-    BOSS_FIGHT: 'Boss Fight'
+    BOSS_FIGHT: 'Boss Fight',
+    /** Победа в миссии кампании, экран награды */
+    MISSION_COMPLETE: 'Mission Complete'
 };
 
 export const BossState = {

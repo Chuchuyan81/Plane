@@ -318,6 +318,7 @@
 .menu-buttons {
   display: flex;
   flex-direction: column;
+  gap: 10px;
 }
 
 .settings-group {
@@ -337,4 +338,64 @@
   color: white;
   border: 1px solid white;
   border-radius: 4px;
+}
+
+.game-btn-secondary {
+  background: #3b82f6;
+}
+
+.game-btn-secondary:hover {
+  background: #2563eb;
+}
+
+.campaign-credits-line {
+  margin: 0 0 12px;
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+}
+
+.mission-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  width: min(920px, 92vw);
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  margin-bottom: 16px;
+  padding: 4px;
+}
+
+.mission-card {
+  min-height: 48px;
+  padding: 10px 12px;
+  font-size: var(--font-size-sm);
+  text-align: left;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.mission-card:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.mission-card:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.mission-card--available {
+  border-color: rgba(34, 197, 94, 0.55);
+}
+
+.mission-card--completed {
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+.mission-card--locked {
+  border-color: rgba(100, 116, 139, 0.35);
 }

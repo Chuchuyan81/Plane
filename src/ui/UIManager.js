@@ -69,6 +69,10 @@ class UIManager {
       case GameState.RESPAWNING:
         this.showHUD();
         break;
+      case GameState.MISSION_COMPLETE:
+        this.hideHUD();
+        this.hideAllScreens();
+        break;
     }
   }
 

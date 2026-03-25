@@ -3,11 +3,16 @@ import { BossConfig } from '../config/BossConfig.js';
 import AudioManager from '../core/AudioManager.js';
 
 export class Boss {
-    constructor(scene, difficulty, bossesKilled, playerPos) {
+    /**
+     * @param {object} [opts]
+     * @param {number} [opts.missionHpMultiplier] множитель HP кампании (1 = без изменений)
+     */
+    constructor(scene, difficulty, bossesKilled, playerPos, opts = {}) {
         const THREE = window.THREE;
         this.scene = scene;
         this.difficulty = difficulty;
         this.bossesKilled = bossesKilled;
+        this.missionHpMultiplier = typeof opts.missionHpMultiplier === 'number' ? opts.missionHpMultiplier : 1;
 
         this.maxHp = this._calculateHp();
         this.hp = this.maxHp;
@@ -33,7 +38,7 @@ export class Boss {
     _calculateHp() {
         const base = BossConfig.BOSS_BASE_HP + this.bossesKilled * BossConfig.BOSS_HP_PER_KILL;
         const mult = BossConfig.HP_MULTIPLIER[this.difficulty] ?? 1.5;
-        return Math.floor(base * mult);
+        return Math.floor(base * mult * this.missionHpMultiplier);
     }
 
     _initMesh(playerPos) {

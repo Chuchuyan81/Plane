@@ -23,6 +23,9 @@ export class BossManager {
 
         this.playerNoDamage = true;
         this._preloadLogged = false;
+
+        /** @type {import('../config/MissionConfig.js').MissionDefinition|null} */
+        this.campaignMissionConfig = null;
     }
 
     /**
@@ -31,6 +34,24 @@ export class BossManager {
      */
     attachRespawnManager(rm) {
         this._respawnManager = rm;
+    }
+
+    /**
+     * Режим кампании: один босс на миссию, порог очков из конфига.
+     * @param {import('../config/MissionConfig.js').MissionDefinition} mission
+     */
+    setCampaignMission(mission) {
+        this.campaignMissionConfig = mission;
+        this.lastBossScore = 0;
+        this.nextBossThreshold = mission.bossScoreThreshold;
+        this._preloadLogged = false;
+    }
+
+    clearCampaignMission() {
+        this.campaignMissionConfig = null;
+        this.nextBossThreshold = this._firstThresholdForDifficulty(this.difficulty);
+        this.lastBossScore = 0;
+        this._preloadLogged = false;
     }
 
     _firstThresholdForDifficulty(d) {
@@ -81,7 +102,13 @@ export class BossManager {
             this._preloadLogged = false;
         }
 
-        this.boss = new Boss(scene, this.difficulty, this.scoreManager.bossesKilled, player.position);
+        const bossKillIndex = this.campaignMissionConfig ? 0 : this.scoreManager.bossesKilled;
+        const missionHpMult = this.campaignMissionConfig
+            ? this.campaignMissionConfig.bossHPMultiplier
+            : 1;
+        this.boss = new Boss(scene, this.difficulty, bossKillIndex, player.position, {
+            missionHpMultiplier: missionHpMult
+        });
 
         if (savedBossHp !== null && savedBossHp !== undefined) {
             this.boss.hp = savedBossHp;
@@ -219,6 +246,66 @@ export class BossManager {
     }
 
     onBossDefeated() {
+        if (this.campaignMissionConfig) {
+            this._onCampaignBossDefeated();
+            return;
+        }
+        this._onEndlessBossDefeated();
+    }
+
+    _onCampaignBossDefeated() {
+        this.isBossActive = false;
+
+        const dropPosition = this.boss ? this.boss.mesh.position.clone() : null;
+        const missionId = this.campaignMissionConfig ? this.campaignMissionConfig.id : null;
+
+        const finalBonus = this.scoreManager.addBossDefeatBonus(
+            this.scoreManager.combo,
+            this.playerNoDamage
+        );
+        this.scoreManager.addBossKill();
+
+        this.checkpointManager.forceSave({
+            type: 'POST_BOSS',
+            score: this.scoreManager.score,
+            combo: this.scoreManager.combo,
+            lastBossScore: this.lastBossScore,
+            nextBossThreshold: this.nextBossThreshold
+        });
+        this.checkpointManager.unlockCheckpointCreation();
+
+        this.physics.resumeDistanceProgress();
+        this._hideBossHUD();
+
+        this.uiManager.updateHUD({ score: this.scoreManager.score });
+        this.uiManager.notify('МИССИЯ ВЫПОЛНЕНА!', 'success', 4000);
+
+        window.dispatchEvent(
+            new CustomEvent('boss-defeated', {
+                detail: { bonus: finalBonus, dropPosition }
+            })
+        );
+
+        if (this.boss) {
+            this.boss.cleanup();
+            this.boss = null;
+        }
+
+        window.dispatchEvent(
+            new CustomEvent('campaign-boss-defeated', {
+                detail: {
+                    missionId,
+                    score: this.scoreManager.score,
+                    playerNoDamage: this.playerNoDamage,
+                    maxCombo: this.scoreManager.maxCombo
+                }
+            })
+        );
+
+        console.log(`[BossManager] Campaign boss defeated, mission ${missionId}`);
+    }
+
+    _onEndlessBossDefeated() {
         this.isBossActive = false;
 
         const dropPosition = this.boss ? this.boss.mesh.position.clone() : null;
@@ -255,10 +342,9 @@ export class BossManager {
                 detail: { bonus: finalBonus, dropPosition }
             })
         );
-        
-        // Скриптовый спавн бонуса после победы (POST_BOSS)
-        window.dispatchEvent(new CustomEvent('boss-spawn-aid', { 
-            detail: { distance: 150 } 
+
+        window.dispatchEvent(new CustomEvent('boss-spawn-aid', {
+            detail: { distance: 150 }
         }));
 
         if (this.boss) {
@@ -277,6 +363,11 @@ export class BossManager {
         this.lastBossScore = checkpoint.lastBossScore !== undefined ? checkpoint.lastBossScore : 0;
         this.nextBossThreshold = checkpoint.nextBossThreshold !== undefined ? checkpoint.nextBossThreshold : this._firstThresholdForDifficulty(this.difficulty);
         this._preloadLogged = false;
+
+        if (this.campaignMissionConfig) {
+            console.log(`[BossManager] Campaign checkpoint restore: lastBossScore=${this.lastBossScore}, nextThreshold=${this.nextBossThreshold}`);
+            return;
+        }
 
         // Старые сохранения: порог был «накопительным» (5000, 7500…), счёт уже выше — выровнять интервал
         if (this.scoreManager.score >= this.nextBossThreshold) {
