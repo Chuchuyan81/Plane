@@ -1,4 +1,3 @@
-import { GameState } from '../core/GameState.js';
 import { campaignStorage } from '../utils/campaignStorage.js';
 import { Boss } from '../objects/Boss.js';
 import { BossConfig } from '../config/BossConfig.js';
@@ -30,6 +29,9 @@ export class BossManager {
 
         /** Между смертельным попаданием и onBossDefeated (взрыв) — не показывать полосу «до босса» */
         this._bossVictoryPending = false;
+
+        /** id миссии кампании на момент смертельного попадания (колбэк взрыва позже) */
+        this._victoryCampaignMissionId = null;
     }
 
     /**
@@ -56,6 +58,7 @@ export class BossManager {
         this.nextBossThreshold = this._firstThresholdForDifficulty(this.difficulty);
         this.lastBossScore = 0;
         this._preloadLogged = false;
+        this._victoryCampaignMissionId = null;
     }
 
     _firstThresholdForDifficulty(d) {
@@ -292,6 +295,7 @@ export class BossManager {
         window.dispatchEvent(new CustomEvent('boss-hit'));
 
         if (isKilled) {
+            this._victoryCampaignMissionId = this.campaignMissionConfig ? this.campaignMissionConfig.id : null;
             this._bossVictoryPending = true;
             this.isBossActive = false;
             this._hideBossHUD();
@@ -305,16 +309,24 @@ export class BossManager {
     }
 
     onBossDefeated() {
-        if (this.campaignMissionConfig) {
-            this._onCampaignBossDefeated();
+        const missionId =
+            this._victoryCampaignMissionId != null
+                ? this._victoryCampaignMissionId
+                : this.campaignMissionConfig?.id ?? null;
+        this._victoryCampaignMissionId = null;
+
+        if (missionId != null) {
+            this._onCampaignBossDefeated(missionId);
             return;
         }
         this._onEndlessBossDefeated();
     }
 
-    _onCampaignBossDefeated() {
+    /**
+     * @param {number} missionId
+     */
+    _onCampaignBossDefeated(missionId) {
         const dropPosition = this.boss ? this.boss.mesh.position.clone() : null;
-        const missionId = this.campaignMissionConfig ? this.campaignMissionConfig.id : null;
 
         const finalBonus = this.scoreManager.addBossDefeatBonus(
             this.scoreManager.combo,
@@ -322,23 +334,17 @@ export class BossManager {
         );
         this.scoreManager.addBossKill();
 
-        let persist = { creditsEarned: 0, totalCredits: 0 };
-        let endMissionResult = null;
-        if (missionId != null) {
-            endMissionResult = this.scoreManager.endMission(
-                missionId,
-                this.scoreManager.score,
-                this.scoreManager.combo,
-                this.scoreManager.kills
-            );
-            persist = campaignStorage.recordMissionComplete(missionId, {
-                stars: endMissionResult.stars,
-                score: endMissionResult.score,
-                creditsAwarded: endMissionResult.credits
-            });
-        }
-
-        GameState.transitionTo('MISSION_COMPLETE');
+        const endMissionResult = this.scoreManager.endMission(
+            missionId,
+            this.scoreManager.score,
+            this.scoreManager.combo,
+            this.scoreManager.kills
+        );
+        const persist = campaignStorage.recordMissionComplete(missionId, {
+            stars: endMissionResult.stars,
+            score: endMissionResult.score,
+            creditsAwarded: endMissionResult.credits
+        });
 
         this.checkpointManager.forceSave({
             type: 'POST_BOSS',
@@ -495,5 +501,6 @@ export class BossManager {
         this.bonusSpawnTimer = 0;
         this._preloadLogged = false;
         this._bossVictoryPending = false;
+        this._victoryCampaignMissionId = null;
     }
 }

@@ -530,10 +530,12 @@
     }
 
     function completeCampaignMission(detail) {
-        if (!detail || detail.missionId == null) return;
+        if (!detail) return;
+        const missionId = detail.missionId != null ? detail.missionId : campaignRun.missionId;
+        if (missionId == null) return;
         AudioController.setCombatMuted(false);
         AudioManager.setCombatSuppressed(false);
-        const mission = getMissionById(detail.missionId);
+        const mission = getMissionById(missionId);
         const end = detail.endMission;
         const data = loadCampaignDataSafe();
         campaignRun = { active: false, missionId: null };
