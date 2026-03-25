@@ -66,7 +66,7 @@
       <p>КРЕДИТЫ: <span id="campaignCreditsValue">0</span></p>
     </div>
     <div class="menu-buttons">
-      <button id="btnStart" class="game-btn">ИГРАТЬ</button>
+      <button id="btnStart" class="game-btn">БЕСКОНЕЧНЫЙ ПОЛЁТ</button>
       <button id="btnCampaign" class="game-btn game-btn-secondary">КАМПАНИЯ</button>
       <button id="btnSettings" class="game-btn">НАСТРОЙКИ</button>
     </div>
@@ -987,8 +987,9 @@
 
     function spawnBoss() {
         if (bossManager.isBossActive) return;
-        currentState = GameState.BOSS_FIGHT;
         bossManager.spawnBoss(scene, player, null, false);
+        if (!bossManager.isBossActive) return;
+        currentState = GameState.BOSS_FIGHT;
         uiManager.onStateChange(GameState.BOSS_FIGHT, GameState);
     }
 

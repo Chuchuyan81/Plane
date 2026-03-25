@@ -74,6 +74,7 @@ export class BossManager {
      */
     shouldSpawnBoss(currentScore) {
         if (this.isBossActive) return false;
+        if (this._bossVictoryPending) return false;
         return currentScore >= this.nextBossThreshold;
     }
 
@@ -89,6 +90,7 @@ export class BossManager {
      * @param {boolean} fromRetry — повтор после смерти (не сбрасывать счётчик попыток)
      */
     spawnBoss(scene, player, savedBossHp = null, fromRetry = false) {
+        if (this._bossVictoryPending) return;
         this.isBossActive = true;
         this.playerNoDamage = true;
 
