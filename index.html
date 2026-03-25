@@ -57,6 +57,7 @@
     
     <!-- Уведомления -->
     <div id="notificationsContainer"></div>
+    <button type="button" id="btnCampaignDash" class="campaign-dash-btn" style="display: none;" aria-label="Рывок вперёд">РЫВОК</button>
   </div>
   
   <!-- Экраны меню -->
@@ -76,6 +77,7 @@
   <div id="campaignScreen" class="screen" style="display: none;">
     <h2>Кампания «Вторжение»</h2>
     <p class="campaign-credits-line">Кредиты: <span id="campaignCreditsHeader">0</span></p>
+    <div id="hangarUpgrades"></div>
     <div id="missionGrid" class="mission-grid" role="list"></div>
     <div class="menu-buttons">
       <button type="button" id="btnCampaignBack" class="game-btn">НАЗАД</button>
@@ -176,6 +178,8 @@
     import { applyMissionEnvironment } from './src/utils/missionEnvironment.js';
     import { campaignStorage } from './src/utils/campaignStorage.js';
     import { MissionCompleteUI } from './src/ui/MissionCompleteUI.js';
+    import { getStatsForUpgrades } from './src/managers/UpgradeManager.js';
+    import { UpgradeUI } from './src/ui/UpgradeUI.js';
 
     // Initialize UI Manager
     const uiManager = new UIManager();
@@ -198,8 +202,12 @@
     let campaignRun = { active: false, missionId: null };
     /** Множитель частоты спавна врагов из конфига миссии (1 = как в бесконечном режиме) */
     let missionSpawnMult = 1;
+    /** Радиус подбора бонусов (кампания: из улучшения «Системы») */
+    let campaignPickupReachDist = 2.5;
     /** @type {import('./src/ui/MissionCompleteUI.js').MissionCompleteUI|null} */
     let missionCompleteUI = null;
+    /** @type {import('./src/ui/UpgradeUI.js').UpgradeUI|null} */
+    let upgradeUI = null;
 
     // --- 1. АУДИО КОНТРОЛЛЕР ---
     const AudioController = {
@@ -391,6 +399,9 @@
     markerPool.init(scene);
     physics.setEnvironmentContext({ THREE, scene, groundMat, clouds, hemiLight, dirLight, markerPool });
     missionCompleteUI = new MissionCompleteUI({ root: 'missionCompleteScreen' });
+    upgradeUI = new UpgradeUI('hangarUpgrades', {
+        onRefreshed: () => updateCampaignCreditsUI()
+    });
 
     // --- 8. ГЕЙМПЛЕЙНЫЕ КЛАССЫ ---
     function applyPowerUpType(type) {
@@ -513,7 +524,8 @@
                 onReach: (t) => {
                     applyPowerUpType(t);
                     AudioController.playPowerUp();
-                }
+                },
+                reachDist: campaignPickupReachDist
             });
             this.mesh = this.bonus.mesh;
         }
@@ -532,12 +544,38 @@
     let fireTimer = 0;
     let gameTime = 0;
 
+    function updateCampaignDashButton() {
+        const btn = document.getElementById('btnCampaignDash');
+        if (!btn) return;
+        const inMission =
+            campaignRun.active &&
+            (currentState === GameState.PLAYING || currentState === GameState.BOSS_FIGHT);
+        if (!inMission || !player.dashCooldownMax || player.dashCooldownMax <= 0) {
+            btn.style.display = 'none';
+            return;
+        }
+        btn.style.display = 'flex';
+        btn.disabled = (player.dashCooldownLeft || 0) > 0;
+    }
+
+    function performCampaignDash() {
+        if (!campaignRun.active) return;
+        if (currentState !== GameState.PLAYING && currentState !== GameState.BOSS_FIGHT) return;
+        if (!player || !player.dashCooldownMax || player.dashCooldownMax <= 0) return;
+        if ((player.dashCooldownLeft || 0) > 0) return;
+        player.position.z -= 24;
+        player.dashCooldownLeft = player.dashCooldownMax;
+        respawnManager.grantInvulnerability(playerObj, 400);
+        updateCampaignDashButton();
+    }
+
     function updateCampaignCreditsUI() {
         const d = campaignStorage.load();
         const el = document.getElementById('campaignCreditsValue');
         const elH = document.getElementById('campaignCreditsHeader');
         if (el) el.textContent = d.totalCredits.toLocaleString('ru-RU');
         if (elH) elH.textContent = d.totalCredits.toLocaleString('ru-RU');
+        if (upgradeUI) upgradeUI.refresh();
     }
 
     function buildMissionGrid() {
@@ -659,7 +697,6 @@
         uiManager.updateScore(0);
         uiManager.updateDistance(0);
         uiManager.updateCombo(1);
-        uiManager.updateHealth(player.hp, player.maxHp);
 
         player.position.set(0, 40, 0);
         player.rotation.set(0, 0, 0);
@@ -675,6 +712,26 @@
         player._repairNotifyUntil = 0;
         playerObj.isInvulnerable = false;
         Mats.player.emissiveIntensity = 0;
+
+        campaignPickupReachDist = 2.5;
+        player.dashCooldownMax = 0;
+        player.dashCooldownLeft = 0;
+        if (campaignMissionId != null) {
+            const stats = getStatsForUpgrades(campaignStorage.load().upgrades);
+            if (stats.maxHP != null) {
+                player.maxHp = stats.maxHP;
+                player.hp = stats.maxHP;
+            }
+            if (stats.damage != null) player.bulletDamage = stats.damage;
+            if (stats.pickupRadius != null) campaignPickupReachDist = stats.pickupRadius;
+            if (stats.dashCooldown != null) {
+                player.dashCooldownMax = Math.max(0.25, stats.dashCooldown);
+                player.dashCooldownLeft = 0;
+            }
+        }
+
+        uiManager.updateHealth(player.hp, player.maxHp);
+        updateCampaignDashButton();
 
         clearLevel();
         AudioController.setCombatMuted(false);
@@ -785,9 +842,15 @@
         
         player.position.set(0, 40, -lastCP.distance);
         player.visible = true;
-        player.maxHp = BossConfig.PLAYER.MAX_HP;
-        player.hp = player.maxHp;
-        
+        if (campaignRun.active) {
+            const stats = getStatsForUpgrades(campaignStorage.load().upgrades);
+            player.maxHp = stats.maxHP != null ? stats.maxHP : BossConfig.PLAYER.MAX_HP;
+            player.hp = player.maxHp;
+        } else {
+            player.maxHp = BossConfig.PLAYER.MAX_HP;
+            player.hp = player.maxHp;
+        }
+
         scoreManager.loadFromCheckpoint(lastCP, currentDifficulty);
         bossManager.loadFromCheckpoint(lastCP);
         physics.resetDistance(lastCP.distance);
@@ -796,7 +859,8 @@
         uiManager.updateDistance(lastCP.distance);
         uiManager.updateCombo(scoreManager.combo);
         uiManager.updateHealth(player.hp, player.maxHp);
-        
+        updateCampaignDashButton();
+
         if (lastCP.type === 'PRE_BOSS' || lastCP.type === 'MID_BOSS') {
             currentState = GameState.BOSS_FIGHT;
             const savedBossHp = lastCP.type === 'MID_BOSS' ? lastCP.bossHp : null;
@@ -907,11 +971,21 @@
         }
 
         window.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
+            if (e.code === 'Space') {
+                if (currentState === GameState.PLAYING || currentState === GameState.BOSS_FIGHT) {
+                    e.preventDefault();
+                    performCampaignDash();
+                }
+            } else if (e.key === 'Escape') {
                 if (currentState === GameState.PLAYING || currentState === GameState.BOSS_FIGHT) pauseGame();
                 else if (currentState === GameState.PAUSED) resumeGame();
             }
         });
+
+        const btnDash = document.getElementById('btnCampaignDash');
+        if (btnDash) {
+            btnDash.addEventListener('click', () => performCampaignDash());
+        }
 
         // Boss events for UI
         window.addEventListener('boss-spawn', (e) => {
@@ -1081,6 +1155,12 @@
         if (currentState !== GameState.PLAYING && currentState !== GameState.BOSS_FIGHT) return;
         
         gameTime += dt;
+
+        if (campaignRun.active && player.dashCooldownMax > 0 && (player.dashCooldownLeft || 0) > 0) {
+            player.dashCooldownLeft = Math.max(0, player.dashCooldownLeft - dt);
+        }
+        updateCampaignDashButton();
+
         const isBossFight = currentState === GameState.BOSS_FIGHT;
         const diffMods = physics.getDifficultyModifiers(currentDifficulty);
         const dynamicDifficulty = 1 + scoreManager.score / 5000;

@@ -415,3 +415,102 @@
 .mission-card--locked {
   border-color: rgba(100, 116, 139, 0.35);
 }
+
+/* Дерево улучшений (ангар) */
+.upgrade-tree {
+  width: min(920px, 92vw);
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--color-bg-primary);
+  box-sizing: border-box;
+}
+
+.upgrade-tree-title {
+  margin: 0 0 10px;
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.upgrade-tree-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.upgrade-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.upgrade-row-main {
+  flex: 1 1 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.upgrade-branch-name {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.upgrade-branch-level {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.upgrade-branch-cost {
+  font-size: var(--font-size-sm);
+  color: #fbbf24;
+  min-width: 5.5em;
+  text-align: right;
+}
+
+.upgrade-buy-btn {
+  flex: 0 0 auto;
+  padding: 6px 14px;
+  font-size: var(--font-size-xs);
+}
+
+/* Рывок (кампания), HUD */
+.campaign-dash-btn {
+  position: fixed;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: calc(var(--z-hud) + 2);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  min-height: 44px;
+  padding: 8px 12px;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border-radius: 10px;
+  border: 2px solid rgba(56, 189, 248, 0.6);
+  background: rgba(15, 23, 42, 0.85);
+  color: #e0f2fe;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.campaign-dash-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.campaign-dash-btn:not(:disabled):active {
+  transform: scale(0.97);
+}
