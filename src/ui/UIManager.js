@@ -143,10 +143,17 @@ class UIManager {
     }
 
     if (data.bossProgress !== undefined && data.bossThreshold !== undefined) {
-      const showProgress = data.isBossActive === false;
       const baseline = data.bossProgressBaseline !== undefined ? data.bossProgressBaseline : 0;
+      const showProgress = data.showBossProgressBar === true;
       this.updateBossProgress(data.bossProgress, data.bossThreshold, showProgress, baseline);
     }
+  }
+
+  /** Сброс всех индикаторов боя с боссом (старт миссии / меню) */
+  clearBossBattleUI() {
+    this.setBossWarning(false);
+    this.updateBossHUD('', 0, 1, 'PHASE_1', false);
+    this.updateBossProgress(0, 1, false, 0);
   }
 
   updateScore(score) {

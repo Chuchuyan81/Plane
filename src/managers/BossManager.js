@@ -26,6 +26,9 @@ export class BossManager {
 
         /** @type {import('../config/MissionConfig.js').MissionDefinition|null} */
         this.campaignMissionConfig = null;
+
+        /** Между смертельным попаданием и onBossDefeated (взрыв) — не показывать полосу «до босса» */
+        this._bossVictoryPending = false;
     }
 
     /**
@@ -120,7 +123,7 @@ export class BossManager {
 
         this.bonusSpawnTimer = 0; // Сброс таймера бонусов при начале боя
 
-        this.uiManager.notify('WARNING: BOSS APPROACHING', 'warning', 3000);
+        this.uiManager.notify('Босс!', 'warning', 2800);
         console.log(`[BossManager] Boss spawned at score: ${this.scoreManager.score}, threshold: ${this.nextBossThreshold}`);
     }
 
@@ -145,34 +148,82 @@ export class BossManager {
      * Прогресс до босса (для UI); при ≥80% — лог прелоада
      */
     getBossProgressForUI(currentScore) {
-        const target = this.nextBossThreshold;
-        const ratio = target > 0 ? Math.min(1, currentScore / target) : 0;
-        
-        // Предупреждение (ТЗ Задача 3)
-        if (!this.isBossActive && target - currentScore <= (BossConfig.WARNING_THRESHOLD || 500) && target - currentScore > 0) {
-            this.uiManager.setBossWarning(true);
-        } else if (!this.isBossActive) {
+        if (this._bossVictoryPending) {
+            const target = this.nextBossThreshold;
+            const baseline = this.lastBossScore;
             this.uiManager.setBossWarning(false);
+            this.uiManager.updateHUD({
+                bossProgress: currentScore,
+                bossThreshold: target,
+                bossProgressBaseline: baseline,
+                isBossActive: false,
+                showBossProgressBar: false,
+                bossHp: 0
+            });
+            return {
+                current: currentScore,
+                target,
+                ratio: 0,
+                currentRelative: currentScore,
+                targetRelative: target
+            };
         }
 
-        if (!this._preloadLogged && ratio >= BossConfig.PRELOAD_PROGRESS) {
+        const target = this.nextBossThreshold;
+        const baseline = this.lastBossScore;
+        const span = Math.max(1, target - baseline);
+        const gained = Math.max(0, currentScore - baseline);
+        const ratioInInterval = gained / span;
+
+        const warnDist = BossConfig.WARNING_THRESHOLD || 500;
+        const progressFrom = BossConfig.BOSS_PROGRESS_BAR_FROM ?? 0.78;
+
+        if (!this.isBossActive) {
+            const inApproachZone =
+                currentScore > baseline &&
+                currentScore < target &&
+                target - currentScore <= warnDist;
+            if (inApproachZone) {
+                this.uiManager.setBossWarning(true);
+            } else {
+                this.uiManager.setBossWarning(false);
+            }
+        }
+
+        if (
+            !this._preloadLogged &&
+            !this.isBossActive &&
+            ratioInInterval >= BossConfig.PRELOAD_PROGRESS &&
+            currentScore < target
+        ) {
             this._preloadLogged = true;
             console.log('[BossManager] Boss preload threshold reached (80% progress)');
         }
-        
-        // Обновляем UI через UIManager (полоса — прогресс в интервале lastBossScore → nextBossThreshold)
-        this.uiManager.updateHUD({
+
+        const showBossProgressBar =
+            !this.isBossActive &&
+            currentScore > baseline &&
+            currentScore < target &&
+            ratioInInterval >= progressFrom;
+
+        const payload = {
             bossProgress: currentScore,
             bossThreshold: target,
-            bossProgressBaseline: this.lastBossScore,
-            isBossActive: this.isBossActive
-        });
+            bossProgressBaseline: baseline,
+            isBossActive: this.isBossActive,
+            showBossProgressBar
+        };
+        if (!this.isBossActive) {
+            payload.bossHp = 0;
+        }
+        this.uiManager.updateHUD(payload);
 
-        return { 
-            current: currentScore, 
-            target, 
+        const ratio = target > 0 ? Math.min(1, currentScore / target) : 0;
+        return {
+            current: currentScore,
+            target,
             ratio,
-            currentRelative: currentScore, // Now using absolute for simplicity if requested
+            currentRelative: currentScore,
             targetRelative: target
         };
     }
@@ -234,12 +285,17 @@ export class BossManager {
     handleBossHit(damage) {
         if (!this.boss || this.boss.isDead) return false;
 
-        this.boss.flashHit();
+        const isKilled = this.boss.takeDamage(damage);
         window.dispatchEvent(new CustomEvent('boss-hit'));
 
-        const isKilled = this.boss.takeDamage(damage);
         if (isKilled) {
-            this.onBossDefeated();
+            this._bossVictoryPending = true;
+            this.isBossActive = false;
+            this._hideBossHUD();
+            window.dispatchEvent(new CustomEvent('skyace-combat-mute', { detail: { muted: true } }));
+            this.boss.playDestructionExplosion(() => {
+                this.onBossDefeated();
+            });
             return true;
         }
         return false;
@@ -254,8 +310,6 @@ export class BossManager {
     }
 
     _onCampaignBossDefeated() {
-        this.isBossActive = false;
-
         const dropPosition = this.boss ? this.boss.mesh.position.clone() : null;
         const missionId = this.campaignMissionConfig ? this.campaignMissionConfig.id : null;
 
@@ -275,10 +329,10 @@ export class BossManager {
         this.checkpointManager.unlockCheckpointCreation();
 
         this.physics.resumeDistanceProgress();
-        this._hideBossHUD();
 
         this.uiManager.updateHUD({ score: this.scoreManager.score });
-        this.uiManager.notify('МИССИЯ ВЫПОЛНЕНА!', 'success', 4000);
+        this.uiManager.notify('Миссия выполнена!', 'success', 4000);
+        window.dispatchEvent(new CustomEvent('skyace-boss-victory-sfx', { detail: { campaign: true } }));
 
         window.dispatchEvent(
             new CustomEvent('boss-defeated', {
@@ -303,11 +357,10 @@ export class BossManager {
         );
 
         console.log(`[BossManager] Campaign boss defeated, mission ${missionId}`);
+        this._bossVictoryPending = false;
     }
 
     _onEndlessBossDefeated() {
-        this.isBossActive = false;
-
         const dropPosition = this.boss ? this.boss.mesh.position.clone() : null;
 
         const finalBonus = this.scoreManager.addBossDefeatBonus(
@@ -332,10 +385,10 @@ export class BossManager {
         this.checkpointManager.unlockCheckpointCreation();
 
         this.physics.resumeDistanceProgress();
-        this._hideBossHUD();
 
         this.uiManager.updateHUD({ score: this.scoreManager.score });
-        this.uiManager.notify('BOSS DEFEATED!', 'success', 4000);
+        this.uiManager.notify('Победа над боссом!', 'success', 4000);
+        window.dispatchEvent(new CustomEvent('skyace-boss-victory-sfx', { detail: { campaign: false } }));
 
         window.dispatchEvent(
             new CustomEvent('boss-defeated', {
@@ -353,6 +406,7 @@ export class BossManager {
         }
 
         console.log(`[BossManager] Boss defeated! Next boss at score: ${this.nextBossThreshold} (+${interval} from ${this.lastBossScore})`);
+        this._bossVictoryPending = false;
     }
 
     /**
@@ -414,5 +468,6 @@ export class BossManager {
         this.nextBossThreshold = this._firstThresholdForDifficulty(this.difficulty);
         this.bonusSpawnTimer = 0;
         this._preloadLogged = false;
+        this._bossVictoryPending = false;
     }
 }

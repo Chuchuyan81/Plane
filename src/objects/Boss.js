@@ -294,16 +294,107 @@ export class Boss {
         this.updatePhase();
 
         if (this.hp <= 0) {
-            this.die();
+            this.hp = 0;
+            this.isDead = true;
+            this.state = BossState.DESTROYED;
             return true;
         }
         return false;
     }
 
-    die() {
-        this.isDead = true;
-        this.state = BossState.DESTROYED;
-        AudioManager.play('boss_defeated');
+    /**
+     * Взрыв при уничтожении: масштаб, вспышка, частицы; по завершении — callback (очистка меша снаружи).
+     * @param {() => void} onComplete
+     */
+    playDestructionExplosion(onComplete) {
+        const THREE = window.THREE;
+        if (!this.mesh) {
+            if (onComplete) onComplete();
+            return;
+        }
+
+        this._spawnDeathBurst();
+        window.dispatchEvent(new CustomEvent('camera-shake', { detail: { intensity: 2.5, duration: 520 } }));
+
+        const mesh = this.mesh;
+        if (mesh.material === this.hitFlashMaterial) {
+            mesh.material = this.originalMaterial;
+        }
+        if (mesh.material && mesh.material.emissive) {
+            mesh.material.emissive.setHex(0xffaa66);
+        }
+
+        const start = performance.now();
+        const dur = 750;
+        const meshStartScale = mesh.scale.x;
+
+        const step = (now) => {
+            const t = Math.min(1, (now - start) / dur);
+            const ease = t * t;
+            mesh.scale.setScalar(meshStartScale * (1 + ease * 2.4));
+            if (mesh.material && mesh.material.emissiveIntensity !== undefined) {
+                mesh.material.emissiveIntensity = (1 - t) * 3;
+            }
+            if (t < 1) {
+                requestAnimationFrame(step);
+            } else if (onComplete) {
+                onComplete();
+            }
+        };
+        requestAnimationFrame(step);
+    }
+
+    _spawnDeathBurst() {
+        const THREE = window.THREE;
+        const particleCount = 28;
+        const canvas = document.createElement('canvas');
+        canvas.width = 16;
+        canvas.height = 16;
+        const context = canvas.getContext('2d');
+        const gradient = context.createRadialGradient(8, 8, 0, 8, 8, 8);
+        gradient.addColorStop(0, 'rgba(255,220,120,1)');
+        gradient.addColorStop(0.4, 'rgba(255,120,40,0.9)');
+        gradient.addColorStop(1, 'rgba(255,40,0,0)');
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, 16, 16);
+        const texture = new THREE.CanvasTexture(canvas);
+
+        const base = this.mesh.position.clone();
+        for (let i = 0; i < particleCount; i++) {
+            const material = new THREE.SpriteMaterial({
+                map: texture,
+                color: Math.random() > 0.4 ? 0xff6600 : 0xffcc33,
+                transparent: true
+            });
+            const sprite = new THREE.Sprite(material);
+            sprite.scale.set(1.2 + Math.random(), 1.2 + Math.random(), 1);
+            sprite.position.copy(base);
+            sprite.position.x += (Math.random() - 0.5) * 8;
+            sprite.position.y += (Math.random() - 0.5) * 4;
+            sprite.position.z += (Math.random() - 0.5) * 8;
+            this.scene.add(sprite);
+
+            const velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 22,
+                (Math.random() - 0.5) * 18,
+                (Math.random() - 0.5) * 22
+            );
+            const t0 = performance.now();
+            const life = 650 + Math.random() * 200;
+
+            const anim = (time) => {
+                const elapsed = time - t0;
+                if (elapsed > life) {
+                    this.scene.remove(sprite);
+                    material.dispose();
+                    return;
+                }
+                sprite.position.addScaledVector(velocity, 0.018);
+                material.opacity = Math.max(0, 1 - elapsed / life);
+                requestAnimationFrame(anim);
+            };
+            requestAnimationFrame(anim);
+        }
     }
 
     _shoot(playerPos, type = 'normal') {

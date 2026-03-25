@@ -6,6 +6,12 @@ class AudioManager {
     this.sfxVolume = 0.8;
     this.musicVolume = 0.6;
     this.audioContext = null;
+    /** Глушение боевых SFX босса (взрыв, фанфары отдельно через Web Audio в index) */
+    this.combatSuppressed = false;
+  }
+
+  setCombatSuppressed(value) {
+    this.combatSuppressed = !!value;
   }
 
   /**
@@ -21,7 +27,7 @@ class AudioManager {
   }
 
   play(soundName) {
-    if (!this.enabled) return;
+    if (!this.enabled || this.combatSuppressed) return;
     
     // Ленивая инициализация при первом воспроизведении (если не вызван init)
     if (!this.audioContext) {
