@@ -114,6 +114,13 @@ class UIManager {
   hideHUD() {
     const hud = document.getElementById('hud');
     if (hud) hud.style.display = 'none';
+    this.setBonusStatusText('');
+  }
+
+  /** Строка активных бонусов под HP (название и оставшееся время) */
+  setBonusStatusText(text) {
+    const el = document.getElementById('bonus-status-bar');
+    if (el) el.textContent = text || '';
   }
 
   // Методы обновления данных

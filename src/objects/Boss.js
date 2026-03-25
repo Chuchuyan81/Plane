@@ -1,6 +1,7 @@
 import { BossState } from '../core/GameState.js';
 import { BossConfig } from '../config/BossConfig.js';
 import AudioManager from '../core/AudioManager.js';
+import { spawnDeathExplosion } from '../effects/DeathExplosion.js';
 
 export class Boss {
     /**
@@ -323,6 +324,7 @@ export class Boss {
         }
 
         this._spawnDeathBurst();
+        spawnDeathExplosion(this.scene, this.mesh.position.clone(), 'boss');
         window.dispatchEvent(new CustomEvent('camera-shake', { detail: { intensity: 2.5, duration: 520 } }));
 
         const mesh = this.mesh;

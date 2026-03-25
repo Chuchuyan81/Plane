@@ -77,6 +77,13 @@ export const BossConfig = {
         hard: 1.0
     },
 
+    /** Вероятность выпадения бонуса с врага (homing к игроку) */
+    ENEMY_POWERUP_DROP_CHANCE: {
+        drone: 0.08,
+        kamikaze: 0.22,
+        shooter: 0.28
+    },
+
     BOSS_BONUS: {
         BASE: 5000,
         COMBO_MULTIPLIER: 100,

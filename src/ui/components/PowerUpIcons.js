@@ -45,7 +45,8 @@ class PowerUpIcons {
       speed: '⚡',
       multishot: 'x3',
       repair: '❤️',
-      damage: '💥'
+      damage: '💥',
+      firerate: '🔫'
     };
     return icons[type] || '?';
   }

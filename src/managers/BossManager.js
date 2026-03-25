@@ -246,7 +246,10 @@ export class BossManager {
         if (this.bonusSpawnTimer >= BossConfig.BOSS_BONUS_SPAWN_INTERVAL) {
             if (activeBonusCount < BossConfig.MAX_ACTIVE_BOSS_BONUSES) {
                 window.dispatchEvent(new CustomEvent('boss-spawn-aid', {
-                    detail: { distance: 150 } // Спавним на 150 единиц впереди (было 200)
+                    detail: {
+                        distance: 150,
+                        position: this.boss.mesh.position.clone()
+                    }
                 }));
                 this.bonusSpawnTimer = 0;
             } else {
@@ -281,8 +284,11 @@ export class BossManager {
                 });
                 
                 // Скриптовый спавн бонуса на 50% HP (режим Easy)
-                window.dispatchEvent(new CustomEvent('boss-spawn-aid', { 
-                    detail: { distance: 150 } 
+                window.dispatchEvent(new CustomEvent('boss-spawn-aid', {
+                    detail: {
+                        distance: 150,
+                        position: this.boss.mesh.position.clone()
+                    }
                 }));
                 
                 console.log('[BossManager] MID_BOSS checkpoint (Easy) with scripted bonus');

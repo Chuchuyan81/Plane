@@ -32,6 +32,7 @@
         </div>
         <span id="healthBarText" class="health-text">100/100</span>
       </div>
+      <div id="bonus-status-bar" class="bonus-status-bar" aria-live="polite"></div>
     </div>
     
     <!-- Прогресс до босса (Новый по ТЗ) -->
@@ -169,6 +170,7 @@
     import { BossManager } from './src/managers/BossManager.js';
     import { RespawnManager } from './src/managers/RespawnManager.js';
     import { Bonus } from './src/objects/Bonus.js';
+    import { spawnDeathExplosion } from './src/effects/DeathExplosion.js';
     import AudioManager from './src/core/AudioManager.js';
     import { MISSIONS, getMissionById } from './src/config/MissionConfig.js';
     import { applyMissionEnvironment } from './src/utils/missionEnvironment.js';
@@ -391,6 +393,44 @@
     missionCompleteUI = new MissionCompleteUI({ root: 'missionCompleteScreen' });
 
     // --- 8. ГЕЙМПЛЕЙНЫЕ КЛАССЫ ---
+    function applyPowerUpType(type) {
+        const D = BossConfig.POWERUPS.DURATION;
+        const ms = D * 1000;
+        if (type === 'shield') {
+            player.shield = 1;
+            uiManager.addPowerUp('shield', 9999);
+        } else if (type === 'speed') {
+            player.speedBoost = D;
+            uiManager.addPowerUp('speed', ms);
+        } else if (type === 'multishot') {
+            player.multiShot = D;
+            uiManager.addPowerUp('multishot', ms);
+        } else if (type === 'repair') {
+            player.hp = Math.min(player.maxHp, player.hp + BossConfig.POWERUPS.REPAIR_AMOUNT);
+            uiManager.updateHealth(player.hp, player.maxHp);
+            player._repairNotifyUntil = performance.now() + 2500;
+        } else if (type === 'weapon_damage') {
+            player.damageBoost = D;
+            uiManager.addPowerUp('damage', ms);
+        } else if (type === 'weapon_rate') {
+            player.rateBoost = D;
+            uiManager.addPowerUp('firerate', ms);
+        }
+    }
+
+    function refreshBonusStatusLine() {
+        const parts = [];
+        if (performance.now() < (player._repairNotifyUntil || 0)) {
+            parts.push(`Ремонт +${BossConfig.POWERUPS.REPAIR_AMOUNT} HP`);
+        }
+        if (player.shield > 0) parts.push('Щит активен');
+        if (player.speedBoost > 0) parts.push(`Скорость: ${Math.ceil(player.speedBoost)} с`);
+        if (player.multiShot > 0) parts.push(`Мультивыстрел: ${Math.ceil(player.multiShot)} с`);
+        if (player.damageBoost > 0) parts.push(`Урон: ${Math.ceil(player.damageBoost)} с`);
+        if (player.rateBoost > 0) parts.push(`Скорострельность: ${Math.ceil(player.rateBoost)} с`);
+        uiManager.setBonusStatusText(parts.length ? parts.join(' · ') : '');
+    }
+
     class Enemy {
         constructor(type) {
             this.type = type;
@@ -447,6 +487,8 @@
             this.isDead = true;
             AudioController.playExplosion();
             shakeScreen();
+            const deathPos = this.mesh.position.clone();
+            spawnDeathExplosion(scene, deathPos, 'enemy');
             scoreManager.addKill();
             const points = scoreManager.getEnemyKillPoints(this.type, currentDifficulty);
             scoreManager.addScore(points);
@@ -455,8 +497,9 @@
             uiManager.updateScore(scoreManager.score);
             uiManager.updateCombo(scoreManager.combo);
 
-            if (Math.random() < 0.15) {
-                spawnPowerUp(this.mesh.position.clone());
+            const dropChance = BossConfig.ENEMY_POWERUP_DROP_CHANCE[this.type] ?? 0.1;
+            if (Math.random() < dropChance) {
+                spawnPowerUp(deathPos.clone(), true, null);
             }
             scene.remove(this.mesh);
         }
@@ -466,11 +509,16 @@
         constructor(pos, type = null) {
             const types = ['shield', 'speed', 'multishot', 'repair', 'weapon_damage', 'weapon_rate'];
             this.type = type || types[Math.floor(Math.random() * types.length)];
-            this.bonus = new Bonus(scene, this.type, pos);
+            this.bonus = new Bonus(scene, this.type, pos.clone(), () => player.position, {
+                onReach: (t) => {
+                    applyPowerUpType(t);
+                    AudioController.playPowerUp();
+                }
+            });
             this.mesh = this.bonus.mesh;
         }
         update(dt) {
-            this.bonus.update(dt, gameTime);
+            this.bonus.update(dt);
         }
     }
 
@@ -624,6 +672,7 @@
         player.fireInterval = BossConfig.PLAYER.FIRE_INTERVAL;
         player.damageBoost = 0;
         player.rateBoost = 0;
+        player._repairNotifyUntil = 0;
         playerObj.isInvulnerable = false;
         Mats.player.emissiveIntensity = 0;
 
@@ -671,7 +720,9 @@
         bullets.length = 0;
         enemyBullets.forEach(b => scene.remove(b));
         enemyBullets.length = 0;
-        powerUps.forEach(p => scene.remove(p.mesh));
+        powerUps.forEach((p) => {
+            if (p.bonus && !p.bonus.isDead) p.bonus.cleanup();
+        });
         powerUps.length = 0;
     }
 
@@ -877,13 +928,20 @@
         });
 
         window.addEventListener('boss-spawn-aid', (e) => {
-          const distance = e.detail.distance || 150;
-          const pos = new THREE.Vector3(
-            (Math.random() - 0.5) * 40,
-            25 + Math.random() * 15,
-            player.position.z - distance
-          );
-          spawnPowerUp(pos, true); // true for guaranteed spawn
+          let pos = null;
+          if (e.detail && e.detail.position) {
+            pos = e.detail.position.clone();
+          } else if (bossManager.boss && bossManager.boss.mesh) {
+            pos = bossManager.boss.mesh.position.clone();
+          } else {
+            const distance = (e.detail && e.detail.distance) || 150;
+            pos = new THREE.Vector3(
+              (Math.random() - 0.5) * 40,
+              25 + Math.random() * 15,
+              player.position.z - distance
+            );
+          }
+          spawnPowerUp(pos, true, null);
         });
 
         window.addEventListener('camera-shake', (e) => {
@@ -994,10 +1052,8 @@
     }
 
     function spawnPowerUp(pos, guaranteed = false, type = null) {
-        if (!guaranteed && currentState === GameState.BOSS_FIGHT) return;
-        if (guaranteed || Math.random() < 0.15) { 
-            powerUps.push(new PowerUp(pos, type)); 
-        }
+        if (!guaranteed) return;
+        powerUps.push(new PowerUp(pos, type));
     }
 
     function shoot() {
@@ -1069,8 +1125,10 @@
         }
         if (player.rateBoost > 0) {
             player.rateBoost -= dt;
-            // No specific icon for rate boost in spec but can be added
+            if (player.rateBoost <= 0) uiManager.removePowerUp('firerate');
         }
+
+        refreshBonusStatusLine();
 
         const lerpFactor = 1 - Math.exp(-5 * dt);
         camera.position.z = player.position.z + 20;
@@ -1221,26 +1279,13 @@
             }
         }
 
-        // Powerups update
+        // Powerups: homing к игроку, подбор в Bonus.onReach
         for (let i = powerUps.length - 1; i >= 0; i--) {
-            const p = powerUps[i]; 
-            if (!p || !p.mesh) continue;
-            
+            const p = powerUps[i];
+            if (!p || !p.bonus) continue;
             p.update(dt);
-            if (player.position.distanceTo(p.mesh.position) < 4) {
-                if (p.type === 'shield') { player.shield = 1; uiManager.addPowerUp('shield', 9999); }
-                else if (p.type === 'speed') { player.speedBoost = BossConfig.POWERUPS.DURATION; uiManager.addPowerUp('speed', BossConfig.POWERUPS.DURATION * 1000); }
-                else if (p.type === 'multishot') { player.multiShot = BossConfig.POWERUPS.DURATION; uiManager.addPowerUp('multishot', BossConfig.POWERUPS.DURATION * 1000); }
-                else if (p.type === 'repair') {
-                    player.hp = Math.min(player.maxHp, player.hp + BossConfig.POWERUPS.REPAIR_AMOUNT);
-                    uiManager.updateHealth(player.hp, player.maxHp);
-                    uiManager.showNotification('РЕМОНТ +' + BossConfig.POWERUPS.REPAIR_AMOUNT + ' HP', 'success', 2000);
-                }
-                else if (p.type === 'weapon_damage') { player.damageBoost = BossConfig.POWERUPS.DURATION; uiManager.addPowerUp('damage', BossConfig.POWERUPS.DURATION * 1000); }
-                
-                AudioController.playPowerUp(); scene.remove(p.mesh); powerUps.splice(i, 1);
-            } else if (p.mesh.position.z > player.position.z + 20) {
-                scene.remove(p.mesh); powerUps.splice(i, 1);
+            if (p.bonus.isDead) {
+                powerUps.splice(i, 1);
             }
         }
 
