@@ -130,6 +130,10 @@
         <option value="hard">ТЯЖЕЛО</option>
       </select>
     </div>
+    <div class="settings-group">
+      <label>ЗВУК:</label>
+      <button type="button" id="btnSoundToggle" class="game-btn" aria-pressed="true">ВКЛ</button>
+    </div>
     <div class="menu-buttons">
       <button id="btnSettingsBack" class="game-btn">НАЗАД</button>
     </div>
@@ -185,6 +189,7 @@
     bossManager.attachRespawnManager(respawnManager);
     let currentMarkerDetail = storage.getMarkerDetail();
     let soundEnabled = storage.getSoundEnabled();
+    AudioManager.enabled = soundEnabled;
     let respawnTimer = 0;
     let lastMarkerDistance = -1;
     /** Режим кампании: один босс завершает миссию */
@@ -831,6 +836,22 @@
             bossManager.setDifficulty(currentDifficulty);
             checkpointManager.init(currentDifficulty);
         });
+
+        const btnSoundToggle = document.getElementById('btnSoundToggle');
+        if (btnSoundToggle) {
+            btnSoundToggle.addEventListener('click', () => {
+                const next = !storage.getSoundEnabled();
+                storage.setSoundEnabled(next);
+                soundEnabled = next;
+                AudioController.enabled = next;
+                AudioManager.enabled = next;
+                btnSoundToggle.textContent = next ? 'ВКЛ' : 'ВЫКЛ';
+                btnSoundToggle.setAttribute('aria-pressed', next ? 'true' : 'false');
+            });
+        }
+        if (uiManager.screens.settings && typeof uiManager.screens.settings.syncSoundToggle === 'function') {
+            uiManager.screens.settings.syncSoundToggle();
+        }
 
         window.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
