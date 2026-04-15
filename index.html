@@ -420,12 +420,13 @@
         );
     }
 
-    function resetVisualsToDefault() {
-        applyMissionEnvironment(
-            { THREE, scene, groundMat, clouds, hemiLight, dirLight, markerPool },
-            'DAY'
-        );
-    }
+    const locationGroundScenery = new LocationGroundScenery(THREE, scene, {
+        width: 1400,
+        depth: 4000,
+        y: -20
+    });
+    locationGroundScenery.setWorldPosition(0, -20, 0);
+    const groundMat = locationGroundScenery.matA;
 
     // --- 6. САМОЛЕТ (ИГРОК) ---
     function createPlane() {
@@ -828,10 +829,7 @@
             if (st === 'locked') return;
             campaignRun = { active: true, missionId: campaignMissionId };
             missionSpawnMult = Math.max(0.35, mission.enemySpawnMultiplier);
-            applyMissionEnvironment(
-                { THREE, scene, groundMat, clouds, hemiLight, dirLight, markerPool },
-                mission.environment
-            );
+            applyMissionEnvironment(buildEnvApplyPayload(), mission.environment);
         } else {
             campaignRun = { active: false, missionId: null };
             missionSpawnMult = 1;
