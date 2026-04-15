@@ -343,10 +343,10 @@
     };
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x87CEEB, 100, 500);
-    scene.background = new THREE.Color(0x87CEEB);
+    scene.fog = new THREE.Fog(0x87ceeb, 90, 430);
+    scene.background = new THREE.Color(0x87ceeb);
 
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1500);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -369,7 +369,7 @@
     scene.add(dirLight);
 
     // --- 5. МИР (ЗЕМЛЯ И ОБЛАКА) ---
-    const groundGeom = new THREE.PlaneGeometry(200, 2000);
+    const groundGeom = new THREE.PlaneGeometry(1400, 4000, 1, 1);
     const groundMat = new THREE.MeshPhongMaterial({ color: 0x3b7d3b, flatShading: true });
     const ground = new THREE.Mesh(groundGeom, groundMat);
     ground.rotation.x = -Math.PI / 2;
@@ -378,21 +378,52 @@
     scene.add(ground);
 
     const clouds = [];
+    function createCloudPuffMaterial() {
+        const c = new THREE.Color().setHSL(
+            0.58 + Math.random() * 0.04,
+            0.08 + Math.random() * 0.12,
+            0.88 + Math.random() * 0.08
+        );
+        return new THREE.MeshPhongMaterial({
+            color: c,
+            flatShading: true,
+            transparent: true,
+            opacity: 0.55 + Math.random() * 0.35,
+            depthWrite: false
+        });
+    }
     function createCloud(x, y, z) {
         const cloudGroup = new THREE.Group();
-        const cloudGeom = new THREE.DodecahedronGeometry(Math.random() * 2 + 1, 0);
-        const cloudMat = new THREE.MeshPhongMaterial({ color: 0xffffff, flatShading: true, transparent: true, opacity: 0.8 });
-        for (let i = 0; i < 4; i++) {
-            const m = new THREE.Mesh(cloudGeom, cloudMat);
-            m.position.set(Math.random()*4-2, Math.random()*2-1, Math.random()*4-2);
+        const puffCount = 8 + Math.floor(Math.random() * 7);
+        for (let i = 0; i < puffCount; i++) {
+            const useIco = Math.random() < 0.35;
+            const r = 0.45 + Math.random() * 2.8;
+            const geom = useIco
+                ? new THREE.IcosahedronGeometry(r, 0)
+                : new THREE.SphereGeometry(r, 10, 8);
+            const mat = createCloudPuffMaterial();
+            const m = new THREE.Mesh(geom, mat);
+            const spread = 2.2 + Math.random() * 3.5;
+            const bx = (Math.random() - 0.5) * spread * (0.4 + Math.random());
+            const by = (Math.random() - 0.5) * spread * 0.55;
+            const bz = (Math.random() - 0.5) * spread * (0.4 + Math.random());
+            m.position.set(bx, by, bz);
+            m.rotation.set(Math.random() * 0.5, Math.random() * 0.5, Math.random() * 0.5);
             cloudGroup.add(m);
         }
+        const gScale = 0.82 + Math.random() * 0.42;
+        cloudGroup.scale.setScalar(gScale);
         cloudGroup.position.set(x, y, z);
         scene.add(cloudGroup);
         clouds.push(cloudGroup);
     }
-    for (let i = 0; i < 40; i++) {
-        createCloud((Math.random()-0.5)*100, 30+Math.random()*30, -Math.random()*600);
+    const cloudHalfX = GAME_CONSTANTS.LIMIT_X + 100;
+    for (let i = 0; i < 68; i++) {
+        createCloud(
+            (Math.random() - 0.5) * 2 * cloudHalfX,
+            26 + Math.random() * 34,
+            -40 - Math.random() * 720
+        );
     }
 
     function resetVisualsToDefault() {
@@ -1484,11 +1515,14 @@
             }
         }
 
+        ground.position.x = player.position.x;
         ground.position.z = player.position.z;
         physics.updateMissionEnvironmentEffects(dt, player.position.z);
         clouds.forEach(c => {
             if (c.position.z > player.position.z + 50) {
-                c.position.z = player.position.z - 500 - Math.random() * 100;
+                c.position.z = player.position.z - 550 - Math.random() * 150;
+                c.position.x = player.position.x + (Math.random() - 0.5) * 2 * cloudHalfX;
+                c.position.y = 26 + Math.random() * 34;
             }
         });
     }
