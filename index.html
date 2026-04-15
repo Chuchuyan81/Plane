@@ -217,6 +217,8 @@
     import AudioManager from './src/core/AudioManager.js';
     import { MISSIONS, getMissionById } from './src/config/MissionConfig.js';
     import { applyMissionEnvironment } from './src/utils/missionEnvironment.js';
+    import { LocationGroundScenery } from './src/visuals/LocationGroundScenery.js';
+    import { tickInfiniteLocationTransition } from './src/visuals/InfiniteLocationTransition.js';
     import { campaignStorage } from './src/utils/campaignStorage.js';
     import { MissionCompleteUI } from './src/ui/MissionCompleteUI.js';
     import { getStatsForUpgrades } from './src/managers/UpgradeManager.js';
@@ -369,14 +371,6 @@
     scene.add(dirLight);
 
     // --- 5. МИР (ЗЕМЛЯ И ОБЛАКА) ---
-    const groundGeom = new THREE.PlaneGeometry(1400, 4000, 1, 1);
-    const groundMat = new THREE.MeshPhongMaterial({ color: 0x3b7d3b, flatShading: true });
-    const ground = new THREE.Mesh(groundGeom, groundMat);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -20;
-    ground.receiveShadow = true;
-    scene.add(ground);
-
     const clouds = [];
     function createCloudPuffMaterial() {
         const c = new THREE.Color().setHSL(
@@ -470,7 +464,27 @@
     // --- 7. МАРКЕРЫ ТРАССЫ ---
     const markerPool = new GroundMarkerPool(30);
     markerPool.init(scene);
-    physics.setEnvironmentContext({ THREE, scene, groundMat, clouds, hemiLight, dirLight, markerPool });
+
+    function buildEnvApplyPayload() {
+        return {
+            THREE,
+            scene,
+            groundMat: locationGroundScenery.matA,
+            clouds,
+            hemiLight,
+            dirLight,
+            markerPool,
+            locationGroundScenery
+        };
+    }
+
+    function resetVisualsToDefault() {
+        applyMissionEnvironment(buildEnvApplyPayload(), 'DAY');
+    }
+
+    physics.setEnvironmentContext(buildEnvApplyPayload());
+    resetVisualsToDefault();
+
     missionCompleteUI = new MissionCompleteUI({ root: 'missionCompleteScreen' });
     upgradeUI = new UpgradeUI('hangarUpgrades', {
         onRefreshed: () => updateCampaignCreditsUI()
@@ -1364,6 +1378,17 @@
 
         let displayDistance = physics.updateDistance(player.position);
         uiManager.updateDistance(displayDistance);
+
+        if (
+            !campaignRun.active &&
+            (currentState === GameState.PLAYING || currentState === GameState.BOSS_FIGHT)
+        ) {
+            tickInfiniteLocationTransition(displayDistance, player.position.z, {
+                physics,
+                locationGroundScenery
+            });
+        }
+
         bossManager.getBossProgressForUI(scoreManager.score);
 
         if (isBossFight) {

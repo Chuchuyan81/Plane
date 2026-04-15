@@ -27,7 +27,8 @@ export class PhysicsEngine {
          *   clouds: import('three').Object3D[],
          *   hemiLight?: import('three').HemisphereLight,
          *   dirLight?: import('three').DirectionalLight,
-         *   markerPool?: import('../objects/GroundMarkerPool.js').GroundMarkerPool
+         *   markerPool?: import('../objects/GroundMarkerPool.js').GroundMarkerPool,
+         *   locationGroundScenery?: import('../visuals/LocationGroundScenery.js').LocationGroundScenery
          * } | null}
          */
         this._envCtx = null;
@@ -35,9 +36,11 @@ export class PhysicsEngine {
         this._rainGeom = null;
         this._rainPositions = null;
         this._rainVel = null;
+        this._rainMaterial = null;
         this._voidGroup = null;
         this._voidGeom = null;
         this._voidPositions = null;
+        this._voidMaterial = null;
         this._activeWeather = null;
         this._activeParticles = null;
     }
@@ -51,29 +54,45 @@ export class PhysicsEngine {
     }
 
     /**
-     * Применить пресет окружения по ключу из EnvironmentConfig.
-     * @param {keyof typeof EnvironmentConfig|string} environmentType
+     * @param {object} envConfig
+     * @returns {number}
      */
-    setMissionEnvironment(environmentType) {
-        const envConfig = EnvironmentConfig[environmentType];
-        const ctx = this._envCtx;
-        if (!envConfig || !ctx) return;
+    _visibilityOf(envConfig) {
+        return typeof envConfig.visibility === 'number' ? envConfig.visibility : 1;
+    }
 
+    /**
+     * @param {object} envConfig
+     * @param {number} vis
+     * @returns {{ fogNear: number, fogFar: number }}
+     */
+    _fogDistances(envConfig, vis) {
+        return {
+            fogNear: envConfig.fogNear * (1.12 - vis * 0.1),
+            fogFar: envConfig.fogFar * (0.78 + vis * 0.26)
+        };
+    }
+
+    /**
+     * Небо, туман, свет, облака, цвет земли (без погодных частиц и маркеров).
+     * @param {object} envConfig
+     */
+    _applyVisualCore(envConfig) {
+        const ctx = this._envCtx;
+        if (!ctx || !ctx.THREE || !ctx.scene) return;
         const THREE = ctx.THREE;
         const { scene, groundMat, clouds, hemiLight, dirLight } = ctx;
-        if (!scene || !THREE) return;
-
-        const vis = typeof envConfig.visibility === 'number' ? envConfig.visibility : 1;
+        const vis = this._visibilityOf(envConfig);
         this.visibility = vis;
         this.cloudDensity = envConfig.cloudDensity;
 
         scene.background = new THREE.Color(envConfig.skyColor);
 
-        const fogNear = envConfig.fogNear * (1.12 - vis * 0.1);
-        const fogFar = envConfig.fogFar * (0.78 + vis * 0.26);
+        const { fogNear, fogFar } = this._fogDistances(envConfig, vis);
         scene.fog = new THREE.Fog(envConfig.skyColor, fogNear, fogFar);
 
-        if (groundMat && groundMat.color) {
+        const skipGroundColor = !!ctx.locationGroundScenery;
+        if (!skipGroundColor && groundMat && groundMat.color) {
             groundMat.color.setHex(envConfig.groundColor);
         }
         if (hemiLight && typeof envConfig.hemiIntensity === 'number') {
@@ -89,9 +108,126 @@ export class PhysicsEngine {
                 if (c) c.visible = i < visibleCount;
             });
         }
+    }
 
+    /**
+     * Плавное смешение двух пресетов (бесконечный режим).
+     * @param {string} keyA
+     * @param {string} keyB
+     * @param {number} t 0..1
+     */
+    applyEnvironmentLerp(keyA, keyB, t) {
+        const ctx = this._envCtx;
+        if (!ctx || !ctx.THREE || !ctx.scene) return;
+        const THREE = ctx.THREE;
+        const envA = EnvironmentConfig[keyA];
+        const envB = EnvironmentConfig[keyB];
+        if (!envA || !envB) return;
+
+        const tt = Math.max(0, Math.min(1, t));
+        const visA = this._visibilityOf(envA);
+        const visB = this._visibilityOf(envB);
+        const vis = visA * (1 - tt) + visB * tt;
+
+        const fogA = this._fogDistances(envA, visA);
+        const fogB = this._fogDistances(envB, visB);
+        const fogNear = fogA.fogNear * (1 - tt) + fogB.fogNear * tt;
+        const fogFar = fogA.fogFar * (1 - tt) + fogB.fogFar * tt;
+
+        const sky = new THREE.Color(envA.skyColor).lerp(new THREE.Color(envB.skyColor), tt);
+        ctx.scene.background = sky.clone();
+        ctx.scene.fog = new THREE.Fog(sky.getHex(), fogNear, fogFar);
+
+        const skipGroundColor = !!ctx.locationGroundScenery;
+        if (!skipGroundColor && ctx.groundMat && ctx.groundMat.color) {
+            const gc = new THREE.Color(envA.groundColor).lerp(new THREE.Color(envB.groundColor), tt);
+            ctx.groundMat.color.copy(gc);
+        }
+
+        if (ctx.hemiLight) {
+            const hA = typeof envA.hemiIntensity === 'number' ? envA.hemiIntensity : 0.5;
+            const hB = typeof envB.hemiIntensity === 'number' ? envB.hemiIntensity : 0.5;
+            ctx.hemiLight.intensity = hA * (1 - tt) + hB * tt;
+        }
+        if (ctx.dirLight) {
+            const dA = typeof envA.dirIntensity === 'number' ? envA.dirIntensity : 0.6;
+            const dB = typeof envB.dirIntensity === 'number' ? envB.dirIntensity : 0.6;
+            ctx.dirLight.intensity = dA * (1 - tt) + dB * tt;
+        }
+
+        const dens = envA.cloudDensity * (1 - tt) + envB.cloudDensity * tt;
+        this.cloudDensity = dens;
+        this.visibility = vis;
+        if (Array.isArray(ctx.clouds) && ctx.clouds.length > 0) {
+            const visibleCount = Math.max(0, Math.round(ctx.clouds.length * dens));
+            ctx.clouds.forEach((c, i) => {
+                if (c) c.visible = i < visibleCount;
+            });
+        }
+
+        const dominant = tt >= 0.5 ? envB : envA;
+        this._lastEnvConfig = dominant;
+        this.updateGroundMarkers(dominant);
+
+        const rainStrength =
+            (envA.weather === 'rain' ? 1 : 0) * (1 - tt) + (envB.weather === 'rain' ? 1 : 0) * tt;
+        const voidStrength =
+            (envA.particles === 'purple' ? 1 : 0) * (1 - tt) +
+            (envB.particles === 'purple' ? 1 : 0) * tt;
+        this._syncWeatherEffectsLerp(rainStrength, voidStrength, THREE, ctx.scene);
+
+        this._activeWeather = rainStrength > 0.5 ? 'rain' : null;
+        this._activeParticles = voidStrength > 0.5 ? 'purple' : null;
+    }
+
+    /**
+     * @param {number} rainStrength 0..1
+     * @param {number} voidStrength 0..1
+     */
+    _syncWeatherEffectsLerp(rainStrength, voidStrength, THREE, scene) {
+        if (rainStrength > 0.008) {
+            this._enableRainParticles(THREE, scene);
+            if (this._rainMaterial) {
+                const base = this._rainMaterial.userData.baseOpacity ?? 0.45;
+                this._rainMaterial.opacity = base * Math.min(1, rainStrength);
+                this._rainGroup.visible = true;
+            }
+        } else {
+            this._disableRainParticles(scene);
+        }
+
+        if (voidStrength > 0.008) {
+            this._enableVoidParticles(THREE, scene);
+            if (this._voidMaterial) {
+                const base = this._voidMaterial.userData.baseOpacity ?? 0.35;
+                this._voidMaterial.opacity = base * Math.min(1, voidStrength);
+                this._voidGroup.visible = true;
+            }
+        } else {
+            this._disableVoidParticles(scene);
+        }
+    }
+
+    /**
+     * Применить пресет окружения по ключу из EnvironmentConfig.
+     * @param {keyof typeof EnvironmentConfig|string} environmentType
+     */
+    setMissionEnvironment(environmentType) {
+        const envConfig = EnvironmentConfig[environmentType];
+        const ctx = this._envCtx;
+        if (!envConfig || !ctx) return;
+
+        const THREE = ctx.THREE;
+        const { scene } = ctx;
+        if (!scene || !THREE) return;
+
+        this._applyVisualCore(envConfig);
         this.updateGroundMarkers(envConfig);
         this._syncWeatherEffects(envConfig, THREE, scene);
+
+        if (ctx.locationGroundScenery && typeof ctx.locationGroundScenery.applyInstant === 'function') {
+            ctx.locationGroundScenery.applyInstant(environmentType);
+        }
     }
 
     /**
@@ -155,12 +291,18 @@ export class PhysicsEngine {
 
         if (weather === 'rain') {
             this._enableRainParticles(THREE, scene);
+            if (this._rainMaterial) {
+                this._rainMaterial.opacity = this._rainMaterial.userData.baseOpacity ?? 0.45;
+            }
         } else {
             this._disableRainParticles(scene);
         }
 
         if (particles === 'purple') {
             this._enableVoidParticles(THREE, scene);
+            if (this._voidMaterial) {
+                this._voidMaterial.opacity = this._voidMaterial.userData.baseOpacity ?? 0.35;
+            }
         } else {
             this._disableVoidParticles(scene);
         }
@@ -204,6 +346,8 @@ export class PhysicsEngine {
             opacity: 0.45,
             depthWrite: false
         });
+        mat.userData.baseOpacity = 0.45;
+        this._rainMaterial = mat;
         this._rainGroup = new THREE.Points(geom, mat);
         this._rainGroup.name = 'skyace-rain';
         this._rainGroup.renderOrder = 2;
@@ -242,6 +386,8 @@ export class PhysicsEngine {
             depthWrite: false,
             blending: THREE.AdditiveBlending
         });
+        mat.userData.baseOpacity = 0.35;
+        this._voidMaterial = mat;
         this._voidGroup = new THREE.Points(geom, mat);
         this._voidGroup.name = 'skyace-void-particles';
         this._voidGroup.renderOrder = 1;
@@ -262,7 +408,6 @@ export class PhysicsEngine {
     freezeDistanceProgress() {
         this._distanceProgressFrozen = true;
         this._frozenDistance = this.distance;
-        console.log('[Physics] Distance progress frozen at', this._frozenDistance);
     }
 
     /**
@@ -270,7 +415,6 @@ export class PhysicsEngine {
      */
     resumeDistanceProgress() {
         this._distanceProgressFrozen = false;
-        console.log('[Physics] Distance progress resumed');
     }
 
     /**
