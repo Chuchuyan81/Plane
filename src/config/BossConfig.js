@@ -104,6 +104,20 @@ export const BossConfig = {
         }
     },
 
+    /**
+     * Визуал босса (OBJ+MTL из каталога относительно URL страницы).
+     * При «невидимой» модели: включите BOSS_MODEL_DOUBLE_SIDED или подберите BOSS_MODEL_ROT_*.
+     */
+    BOSS_ASSET_DIR: 'Boss/',
+    /** Целевая длина максимальной оси AABB после нормализации (мировые единицы) */
+    BOSS_MODEL_TARGET_MAX_AXIS: 14,
+    /** Поворот загруженной модели вокруг осей (радианы) */
+    BOSS_MODEL_ROT_X: 0,
+    BOSS_MODEL_ROT_Y: Math.PI,
+    BOSS_MODEL_ROT_Z: 0,
+    /** Рендерить обе стороны полигонов (если нормали смотрят «внутрь») */
+    BOSS_MODEL_DOUBLE_SIDED: true,
+
     POWERUPS: {
         REPAIR_AMOUNT: 30,
         DAMAGE_BOOST: 1, // Дополнительный урон

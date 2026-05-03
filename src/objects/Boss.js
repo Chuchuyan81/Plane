@@ -3,11 +3,6 @@ import { BossConfig } from '../config/BossConfig.js';
 import AudioManager from '../core/AudioManager.js';
 import { spawnDeathExplosion } from '../effects/DeathExplosion.js';
 
-/** Целевая длина максимальной оси AABB после нормализации (порядок старого ящика 12×5×8). */
-const BOSS_MODEL_TARGET_MAX_AXIS = 14;
-/** Поворот вокруг Y под ориентацию экспорта (при необходимости измените). */
-const BOSS_MODEL_ROT_Y = Math.PI;
-
 export class Boss {
     /**
      * @param {object} [opts]
@@ -52,6 +47,20 @@ export class Boss {
         this.updatePhaseVisuals();
     }
 
+    /**
+     * Абсолютный базовый URL каталога Boss/ (model.obj, model.mtl, текстуры) — от документа страницы.
+     * @returns {string}
+     */
+    _bossAssetBaseUrl() {
+        const dir = BossConfig.BOSS_ASSET_DIR || 'Boss/';
+        try {
+            return new URL(dir, window.location.href).href;
+        } catch (e) {
+            console.warn('[Boss] BOSS_ASSET_DIR URL resolve failed, using raw path', e);
+            return dir;
+        }
+    }
+
     _calculateHp() {
         if (this.useCampaignBossHp) {
             const base = BossConfig.CAMPAIGN_BOSS_BASE_HP;
@@ -87,8 +96,9 @@ export class Boss {
             return;
         }
 
+        const assetBase = this._bossAssetBaseUrl();
         const mtlLoader = new THREE.MTLLoader();
-        mtlLoader.setPath('Boss/');
+        mtlLoader.setPath(assetBase);
         mtlLoader.load(
             'model.mtl',
             (materials) => {
@@ -96,7 +106,7 @@ export class Boss {
                 if (!this.mesh || this.isDead) return;
                 const objLoader = new THREE.OBJLoader();
                 objLoader.setMaterials(materials);
-                objLoader.setPath('Boss/');
+                objLoader.setPath(assetBase);
                 objLoader.load(
                     'model.obj',
                     (object) => {
@@ -113,6 +123,8 @@ export class Boss {
                         }
                         this._stripNonGlowChildren(THREE);
                         this._applyBossObjTransformAndMount(THREE, object);
+                        this._syncEngineGlowToModel(THREE, object);
+                        console.log('[Boss] OBJ model mounted from', assetBase);
                     },
                     undefined,
                     (err) => {
@@ -162,7 +174,8 @@ export class Boss {
         this.engineGlow = new THREE.MeshBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.8 });
         const glowMesh = new THREE.Mesh(glowGeom, this.engineGlow);
         glowMesh.userData.isBossGlow = true;
-        glowMesh.position.set(0, 0, Math.max(4, BOSS_MODEL_TARGET_MAX_AXIS * 0.35));
+        const axis = BossConfig.BOSS_MODEL_TARGET_MAX_AXIS ?? 14;
+        glowMesh.position.set(0, 0, Math.max(4, axis * 0.35));
         this.mesh.add(glowMesh);
     }
 
@@ -191,9 +204,17 @@ export class Boss {
      * @param {import('three').Group} object
      */
     _applyBossObjTransformAndMount(THREE, object) {
+        const doubleSided = BossConfig.BOSS_MODEL_DOUBLE_SIDED !== false;
         object.traverse((child) => {
             if (child.isMesh) {
                 child.castShadow = true;
+                child.frustumCulled = true;
+                if (doubleSided && child.material) {
+                    const mats = Array.isArray(child.material) ? child.material : [child.material];
+                    for (const m of mats) {
+                        if (m && 'side' in m) m.side = THREE.DoubleSide;
+                    }
+                }
             }
         });
 
@@ -205,13 +226,39 @@ export class Boss {
         box.getSize(size);
         object.position.sub(center);
 
+        const targetAxis = BossConfig.BOSS_MODEL_TARGET_MAX_AXIS ?? 14;
         const maxAxis = Math.max(size.x, size.y, size.z);
         if (maxAxis > 1e-6) {
-            object.scale.setScalar(BOSS_MODEL_TARGET_MAX_AXIS / maxAxis);
+            object.scale.setScalar(targetAxis / maxAxis);
         }
-        object.rotation.y = BOSS_MODEL_ROT_Y;
+        object.rotation.set(
+            BossConfig.BOSS_MODEL_ROT_X ?? 0,
+            BossConfig.BOSS_MODEL_ROT_Y ?? 0,
+            BossConfig.BOSS_MODEL_ROT_Z ?? 0
+        );
 
         this.mesh.add(object);
+    }
+
+    /**
+     * Сдвиг сферы двигателя к «корме» по локальному AABB модели (после масштаба и поворота).
+     * @param {typeof import('three')} THREE
+     * @param {import('three').Object3D} modelRoot
+     */
+    _syncEngineGlowToModel(THREE, modelRoot) {
+        if (!this.mesh) return;
+        let glowMesh = null;
+        this.mesh.traverse((c) => {
+            if (c.userData && c.userData.isBossGlow) glowMesh = c;
+        });
+        if (!glowMesh) return;
+
+        modelRoot.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(modelRoot);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const maxDim = Math.max(size.x, size.y, size.z);
+        glowMesh.position.set(0, 0, Math.max(2.5, maxDim * 0.42 + 1.5));
     }
 
     flashHit() {

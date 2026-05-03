@@ -1,5 +1,4 @@
-# Placeholder / fallback geometry matching previous boss AABB (12×5×8).
-# Replace this file with the converted mesh from model.g3d when available.
+# Корпус босса (Wavefront OBJ). Замените файл при конвертации model.g3d.
 mtllib model.mtl
 
 o boss_hull
