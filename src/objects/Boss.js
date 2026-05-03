@@ -3,6 +3,11 @@ import { BossConfig } from '../config/BossConfig.js';
 import AudioManager from '../core/AudioManager.js';
 import { spawnDeathExplosion } from '../effects/DeathExplosion.js';
 
+/** Целевая длина максимальной оси AABB после нормализации (порядок старого ящика 12×5×8). */
+const BOSS_MODEL_TARGET_MAX_AXIS = 14;
+/** Поворот вокруг Y под ориентацию экспорта (при необходимости измените). */
+const BOSS_MODEL_ROT_Y = Math.PI;
+
 export class Boss {
     /**
      * @param {object} [opts]
@@ -37,6 +42,12 @@ export class Boss {
         /** Мировая позиция в момент смерти (меш снимается сразу, для dropPosition и т.п.) */
         this.deathOrigin = null;
 
+        /** Счётчик мигания при уроне (отмена устаревших таймеров) */
+        this._hitFlashToken = 0;
+
+        /** Материал запасного куба (если OBJ/MTL не загрузились) */
+        this.originalMaterial = null;
+
         this._initMesh(playerPos);
         this.updatePhaseVisuals();
     }
@@ -56,31 +67,151 @@ export class Boss {
 
     _initMesh(playerPos) {
         const THREE = window.THREE;
-        const geom = new THREE.BoxGeometry(12, 5, 8);
-        this.originalMaterial = new THREE.MeshPhongMaterial({ 
-            color: 0x2c3e50, 
-            flatShading: true,
-            emissive: 0xffffff,
-            emissiveIntensity: 0
-        });
-        this.hitFlashMaterial = new THREE.MeshPhongMaterial({ 
-            color: 0xff0000, 
+        this.hitFlashMaterial = new THREE.MeshPhongMaterial({
+            color: 0xff0000,
             flatShading: true,
             emissive: 0xff0000,
             emissiveIntensity: 1
         });
-        
-        this.mesh = new THREE.Mesh(geom, this.originalMaterial);
-        this.mesh.castShadow = true;
+
+        this.mesh = new THREE.Group();
         this.mesh.position.set(0, 30, playerPos.z - 150);
         this.scene.add(this.mesh);
 
-        // Engine glow
+        this._addEngineGlow(THREE);
+
+        const loadersReady = typeof THREE.MTLLoader === 'function' && typeof THREE.OBJLoader === 'function';
+        if (!loadersReady) {
+            console.error('[Boss] THREE.MTLLoader / THREE.OBJLoader not available, using fallback box');
+            this._initFallbackBoxHull(THREE);
+            return;
+        }
+
+        const mtlLoader = new THREE.MTLLoader();
+        mtlLoader.setPath('Boss/');
+        mtlLoader.load(
+            'model.mtl',
+            (materials) => {
+                materials.preload();
+                if (!this.mesh || this.isDead) return;
+                const objLoader = new THREE.OBJLoader();
+                objLoader.setMaterials(materials);
+                objLoader.setPath('Boss/');
+                objLoader.load(
+                    'model.obj',
+                    (object) => {
+                        if (!this.mesh || this.isDead) {
+                            object.traverse((child) => {
+                                if (child.geometry) child.geometry.dispose();
+                                if (child.material) {
+                                    const m = child.material;
+                                    if (Array.isArray(m)) m.forEach((x) => x.dispose && x.dispose());
+                                    else if (m.dispose) m.dispose();
+                                }
+                            });
+                            return;
+                        }
+                        this._stripNonGlowChildren(THREE);
+                        this._applyBossObjTransformAndMount(THREE, object);
+                    },
+                    undefined,
+                    (err) => {
+                        console.error('[Boss] Failed to load Boss/model.obj', err);
+                        if (this.mesh && !this.isDead) this._initFallbackBoxHull(THREE);
+                    }
+                );
+            },
+            undefined,
+            (err) => {
+                console.error('[Boss] Failed to load Boss/model.mtl', err);
+                if (this.mesh && !this.isDead) this._initFallbackBoxHull(THREE);
+            }
+        );
+    }
+
+    /**
+     * Снимает с корня всё кроме подсветки (модель или старый fallback).
+     * @param {typeof import('three')} THREE
+     */
+    _stripNonGlowChildren(THREE) {
+        if (!this.mesh) return;
+        for (let i = this.mesh.children.length - 1; i >= 0; i--) {
+            const c = this.mesh.children[i];
+            if (c.userData && c.userData.isBossGlow) continue;
+            this.mesh.remove(c);
+            c.traverse((child) => {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) {
+                    const m = child.material;
+                    const list = Array.isArray(m) ? m : [m];
+                    for (const mat of list) {
+                        if (!mat || mat === this.hitFlashMaterial || mat === this.engineGlow || mat === this.originalMaterial)
+                            continue;
+                        mat.dispose();
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * @param {typeof import('three')} THREE
+     */
+    _addEngineGlow(THREE) {
         const glowGeom = new THREE.SphereGeometry(2, 8, 8);
         this.engineGlow = new THREE.MeshBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.8 });
         const glowMesh = new THREE.Mesh(glowGeom, this.engineGlow);
-        glowMesh.position.set(0, 0, 4); // Back of the boss
+        glowMesh.userData.isBossGlow = true;
+        glowMesh.position.set(0, 0, Math.max(4, BOSS_MODEL_TARGET_MAX_AXIS * 0.35));
         this.mesh.add(glowMesh);
+    }
+
+    /**
+     * Запасной корпус как раньше (один Mesh с PhongMaterial).
+     * @param {typeof import('three')} THREE
+     */
+    _initFallbackBoxHull(THREE) {
+        this._stripNonGlowChildren(THREE);
+        if (!this.originalMaterial) {
+            this.originalMaterial = new THREE.MeshPhongMaterial({
+                color: 0x2c3e50,
+                flatShading: true,
+                emissive: 0xffffff,
+                emissiveIntensity: 0
+            });
+        }
+        const geom = new THREE.BoxGeometry(12, 5, 8);
+        const hull = new THREE.Mesh(geom, this.originalMaterial);
+        hull.castShadow = true;
+        this.mesh.add(hull);
+    }
+
+    /**
+     * @param {typeof import('three')} THREE
+     * @param {import('three').Group} object
+     */
+    _applyBossObjTransformAndMount(THREE, object) {
+        object.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = true;
+            }
+        });
+
+        object.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(object);
+        const center = new THREE.Vector3();
+        const size = new THREE.Vector3();
+        box.getCenter(center);
+        box.getSize(size);
+        object.position.sub(center);
+
+        const maxAxis = Math.max(size.x, size.y, size.z);
+        if (maxAxis > 1e-6) {
+            object.scale.setScalar(BOSS_MODEL_TARGET_MAX_AXIS / maxAxis);
+        }
+        object.rotation.y = BOSS_MODEL_ROT_Y;
+
+        this.mesh.add(object);
     }
 
     flashHit() {
@@ -91,10 +222,23 @@ export class Boss {
     visualHitEffect() {
         if (!this.mesh) return;
 
-        // 1. Мигание красным (0.1 сек)
-        this.mesh.material = this.hitFlashMaterial;
+        // 1. Мигание красным (0.1 сек): обход всех Mesh, кроме подсветки двигателя
+        const token = ++this._hitFlashToken;
+        const saved = [];
+        this.mesh.traverse((child) => {
+            if (!child.isMesh || (child.userData && child.userData.isBossGlow)) return;
+            saved.push({ child, material: child.material });
+            if (Array.isArray(child.material)) {
+                child.material = child.material.map(() => this.hitFlashMaterial);
+            } else {
+                child.material = this.hitFlashMaterial;
+            }
+        });
         setTimeout(() => {
-            if (this.mesh) this.mesh.material = this.originalMaterial;
+            if (token !== this._hitFlashToken || !this.mesh) return;
+            for (const { child, material } of saved) {
+                if (child.material !== undefined) child.material = material;
+            }
         }, 100);
 
         // 2. Частицы искр (sprite particles as requested)
@@ -335,14 +479,7 @@ export class Boss {
         const meshToRemove = this.mesh;
         this.mesh = null;
         this.scene.remove(meshToRemove);
-        meshToRemove.traverse((child) => {
-            if (child.geometry) child.geometry.dispose();
-            if (child.material) {
-                const m = child.material;
-                if (Array.isArray(m)) m.forEach((x) => x.dispose());
-                else m.dispose();
-            }
-        });
+        this._disposeBossVisualResources(meshToRemove);
 
         const doneDelay = 750;
         setTimeout(() => {
@@ -421,15 +558,39 @@ export class Boss {
 
     cleanup() {
         if (!this.mesh) return;
-        this.scene.remove(this.mesh);
-        this.mesh.traverse((child) => {
+        const root = this.mesh;
+        this.mesh = null;
+        this.scene.remove(root);
+        this._disposeBossVisualResources(root);
+    }
+
+    /**
+     * Геометрии и материалы загруженной модели; общие материалы босса — один раз в конце.
+     * @param {import('three').Object3D} meshRoot
+     */
+    _disposeBossVisualResources(meshRoot) {
+        meshRoot.traverse((child) => {
             if (child.geometry) child.geometry.dispose();
             if (child.material) {
-                const m = child.material;
-                if (Array.isArray(m)) m.forEach((x) => x.dispose());
-                else m.dispose();
+                const arr = Array.isArray(child.material) ? child.material : [child.material];
+                for (const m of arr) {
+                    if (!m) continue;
+                    if (m === this.hitFlashMaterial || m === this.engineGlow || m === this.originalMaterial) continue;
+                    m.dispose();
+                }
             }
         });
-        this.mesh = null;
+        if (this.hitFlashMaterial) {
+            this.hitFlashMaterial.dispose();
+            this.hitFlashMaterial = null;
+        }
+        if (this.engineGlow) {
+            this.engineGlow.dispose();
+            this.engineGlow = null;
+        }
+        if (this.originalMaterial) {
+            this.originalMaterial.dispose();
+            this.originalMaterial = null;
+        }
     }
 }

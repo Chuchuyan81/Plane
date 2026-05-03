@@ -196,7 +196,9 @@
   
   <!-- Three.js Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  
+  <script src="vendor/three-r128/MTLLoader.js"></script>
+  <script src="vendor/three-r128/OBJLoader.js"></script>
+
   <!-- Main Game Script -->
   <script type="module">
     const THREE = window.THREE;
@@ -1538,8 +1540,8 @@
             }
         }
 
-        ground.position.x = player.position.x;
-        ground.position.z = player.position.z;
+        locationGroundScenery.group.position.x = player.position.x;
+        locationGroundScenery.group.position.z = player.position.z;
         physics.updateMissionEnvironmentEffects(dt, player.position.z);
         clouds.forEach(c => {
             if (c.position.z > player.position.z + 50) {
